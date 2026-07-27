@@ -1,4 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { lazy, Suspense, useEffect, useState } from "react";
+
+const VideoTracker = lazy(() => import("@/components/VideoTracker"));
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -106,91 +109,32 @@ function Hero() {
           </div>
         </div>
 
-        {/* HUD mock */}
-        <div className="relative aspect-[4/3] bg-black rounded-lg border border-[color:var(--rkr-border)] overflow-hidden shadow-[0_30px_80px_-20px_rgba(255,92,0,0.25)]">
-          <div
-            className="absolute inset-0 opacity-30"
-            style={{
-              background:
-                "radial-gradient(circle at 30% 40%, #3a3a40 0%, transparent 55%), radial-gradient(circle at 70% 70%, #2a2a2f 0%, transparent 50%), #0a0a0b",
-            }}
-          />
-          {/* scan line */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            <div
-              className="absolute inset-x-0 h-[2px] bg-[color:var(--rkr-primary)]/40 blur-[2px]"
-              style={{ animation: "rkr-scan 4s linear infinite" }}
-            />
-          </div>
-          {/* HUD top */}
-          <div className="absolute inset-0 p-5 flex flex-col justify-between font-[family-name:var(--font-mono)] text-[10px] text-[color:var(--rkr-fg)]">
-            <div className="flex justify-between items-start">
-              <div className="space-y-1">
-                <div className="flex gap-2 items-center">
-                  <span className="text-[color:var(--rkr-muted)]">REC</span>
-                  <span className="text-[color:var(--rkr-primary)] animate-pulse">●</span>
-                  <span>00:04:12:15</span>
-                </div>
-                <div className="text-[color:var(--rkr-muted)]">COORD 34.05°N · 118.24°W</div>
-              </div>
-              <div className="flex gap-3 border border-white/10 bg-black/50 rounded px-3 py-1.5 backdrop-blur">
-                <div className="text-center">
-                  <div className="text-[9px] text-[color:var(--rkr-muted)] leading-none">FPS</div>
-                  <div className="text-xs">24.0</div>
-                </div>
-                <div className="w-px bg-white/10" />
-                <div className="text-center">
-                  <div className="text-[9px] text-[color:var(--rkr-muted)] leading-none">DROP</div>
-                  <div className="text-xs">0</div>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-end justify-between">
-              <div className="text-[color:var(--rkr-muted)]">FRAME 00452 / 01800</div>
-              <div>MODEL · rekor-yolo-v9</div>
-            </div>
-          </div>
-          {/* bounding boxes */}
-          <div
-            className="absolute top-[22%] left-[34%] w-[26%] h-[46%] border-2 border-[color:var(--rkr-primary)]"
-            style={{ animation: "rkr-box-expand 0.6s var(--ease-out) both" }}
-          >
-            <span className="absolute -top-5 left-0 bg-[color:var(--rkr-primary)] text-black font-[family-name:var(--font-mono)] text-[9px] px-1.5 py-0.5 font-bold whitespace-nowrap">
-              ID_042 · VEHICLE · 98.4%
-            </span>
-            <span className="absolute -top-1 -left-1 size-2 border-l-2 border-t-2 border-[color:var(--rkr-primary)]" />
-            <span className="absolute -bottom-1 -right-1 size-2 border-r-2 border-b-2 border-[color:var(--rkr-primary)]" />
-          </div>
-          <div
-            className="absolute top-[48%] left-[10%] w-[16%] h-[32%] border border-white/40"
-            style={{ animation: "rkr-box-expand 0.6s var(--ease-out) 0.15s both" }}
-          >
-            <span className="absolute -top-4 left-0 text-white/70 font-[family-name:var(--font-mono)] text-[9px]">
-              ID_089 · HUMAN · 72.1%
-            </span>
-          </div>
-          <div
-            className="absolute top-[36%] right-[8%] w-[14%] h-[22%] border border-white/40"
-            style={{ animation: "rkr-box-expand 0.6s var(--ease-out) 0.3s both" }}
-          >
-            <span className="absolute -top-4 left-0 text-white/70 font-[family-name:var(--font-mono)] text-[9px]">
-              ID_113 · BIKE · 61.5%
-            </span>
-          </div>
-          {/* trajectory line */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 75" preserveAspectRatio="none">
-            <path
-              d="M20 62 Q 34 55 42 44 T 60 30"
-              fill="none"
-              stroke="#FF5C00"
-              strokeWidth="0.4"
-              strokeDasharray="1.5 1.5"
-              opacity="0.7"
-            />
-          </svg>
-        </div>
+        <ClientTracker />
       </div>
     </section>
+  );
+}
+
+function ClientTracker() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) {
+    return (
+      <div className="relative aspect-[4/3] bg-black rounded-lg border border-[color:var(--rkr-border)] overflow-hidden shadow-[0_30px_80px_-20px_rgba(255,92,0,0.25)]" />
+    );
+  }
+  return (
+    <Suspense
+      fallback={
+        <div className="relative aspect-[4/3] bg-black rounded-lg border border-[color:var(--rkr-border)] overflow-hidden shadow-[0_30px_80px_-20px_rgba(255,92,0,0.25)] grid place-items-center">
+          <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-widest text-[color:var(--rkr-muted)]">
+            Loading tracker…
+          </span>
+        </div>
+      }
+    >
+      <VideoTracker />
+    </Suspense>
   );
 }
 
