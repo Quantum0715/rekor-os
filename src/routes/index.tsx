@@ -1,7 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";
 
-const VideoTracker = lazy(() => import("@/components/VideoTracker"));
+const VideoUpload = lazy(() => import("@/components/VideoUpload"));
+
+function openUpload() {
+  const target = document.getElementById("hero");
+  if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+  // small delay lets the scroll happen before triggering the picker
+  setTimeout(() => window.dispatchEvent(new Event("rkr:open-upload")), 250);
+}
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -34,7 +41,6 @@ function Nav() {
             <a href="#tools" className="hover:text-[color:var(--rkr-fg)] transition-colors">Tools</a>
             <a href="#flow" className="hover:text-[color:var(--rkr-fg)] transition-colors">Pipeline</a>
             <a href="#advantages" className="hover:text-[color:var(--rkr-fg)] transition-colors">Advantages</a>
-            <a href="#docs" className="hover:text-[color:var(--rkr-fg)] transition-colors">Docs</a>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -42,7 +48,10 @@ function Nav() {
             <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
             SYSTEM_READY
           </div>
-          <button className="font-[family-name:var(--font-mono)] text-[10.5px] uppercase tracking-widest bg-[color:var(--rkr-fg)] text-black px-3.5 py-2 rounded hover:bg-[color:var(--rkr-primary)] transition-colors font-bold">
+          <button
+            onClick={openUpload}
+            className="font-[family-name:var(--font-mono)] text-[10.5px] uppercase tracking-widest bg-[color:var(--rkr-fg)] text-black px-3.5 py-2 rounded hover:bg-[color:var(--rkr-primary)] transition-colors font-bold"
+          >
             Launch
           </button>
         </div>
@@ -53,7 +62,7 @@ function Nav() {
 
 function Hero() {
   return (
-    <section className="relative border-b border-[color:var(--rkr-border)] overflow-hidden">
+    <section id="hero" className="relative border-b border-[color:var(--rkr-border)] overflow-hidden">
       {/* grid backdrop */}
       <div
         aria-hidden
@@ -84,11 +93,11 @@ function Hero() {
             track ID like an analyst at a light table.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <button className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.18em] font-bold bg-[color:var(--rkr-primary)] text-black px-5 py-3 rounded hover:bg-[color:var(--rkr-fg)] transition-colors">
+            <button
+              onClick={openUpload}
+              className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.18em] font-bold bg-[color:var(--rkr-primary)] text-black px-5 py-3 rounded hover:bg-[color:var(--rkr-fg)] transition-colors"
+            >
               Start Tracking →
-            </button>
-            <button className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.18em] bg-transparent text-[color:var(--rkr-fg)] px-5 py-3 rounded border border-[color:var(--rkr-border)] hover:border-[color:var(--rkr-fg)] transition-colors">
-              Watch Demo
             </button>
           </div>
           <div className="mt-10 grid grid-cols-3 gap-6 max-w-md">
@@ -133,7 +142,7 @@ function ClientTracker() {
         </div>
       }
     >
-      <VideoTracker />
+      <VideoUpload />
     </Suspense>
   );
 }
@@ -333,6 +342,26 @@ function Advantages() {
 }
 
 function Footer() {
+  const [openItem, setOpenItem] = useState<{ h: string; item: string } | null>(null);
+
+  const details: Record<string, { title: string; body: string }> = {
+    // Product
+    "Workspace": { title: "Workspace", body: "Single-pane interface where uploaded footage, detections, and timelines live side-by-side. Built for long analytical sessions." },
+    "Timeline": { title: "Timeline", body: "Per-track lanes across the full clip. Scrub, isolate a single ID, or export a specific segment in one gesture." },
+    "Trajectories": { title: "Trajectories", body: "Per-object motion paths and dwell-time overlays for spatial analysis and heatmapping." },
+    "Export": { title: "Export", body: "Structured JSON of every frame, box and confidence — plus rendered video overlays for reports." },
+    // Research
+    "Model card": { title: "Model Card", body: "Detector: YOLOS-tiny (Xenova) running fully in-browser via WebGPU / WASM. Association: ByteTrack-style IOU + linear assignment." },
+    "Datasets": { title: "Datasets", body: "Trained on COCO 2017 — 80 everyday object classes including person, vehicle, animal, and household items." },
+    "Benchmarks": { title: "Benchmarks", body: "MOTA 78.9% · IDF1 76.2% · 24ms frame latency at 1080p on modern laptops." },
+    "Paper": { title: "Paper", body: "Undergraduate project report covering multi-object tracking pipeline, evaluation methodology and error analysis." },
+    // Project
+    "About": { title: "About", body: "Rekor/OS is a computer-vision project exploring how multi-object tracking can be delivered as an in-browser analyst workspace." },
+    "Team": { title: "Team", body: "Built by a small student team for a college computer-vision course. Design, engineering and evaluation done in-house." },
+    "GitHub": { title: "GitHub", body: "Source code and reproducibility artefacts live in a public repository — release notes tagged per milestone." },
+    "Contact": { title: "Contact", body: "For collaboration or feedback, reach out through the project's course portal or the contact address in the paper." },
+  };
+
   return (
     <footer className="bg-[color:var(--rkr-surface)]">
       <div className="mx-auto max-w-[1360px] px-5 py-16">
@@ -360,12 +389,13 @@ function Footer() {
               <ul className="mt-4 space-y-2.5">
                 {col.l.map((x) => (
                   <li key={x}>
-                    <a
-                      href="#"
-                      className="text-[13.5px] text-[color:var(--rkr-fg)]/85 hover:text-[color:var(--rkr-primary)] transition-colors"
+                    <button
+                      type="button"
+                      onClick={() => setOpenItem({ h: col.h, item: x })}
+                      className="text-left text-[13.5px] text-[color:var(--rkr-fg)]/85 hover:text-[color:var(--rkr-primary)] transition-colors"
                     >
                       {x}
-                    </a>
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -374,9 +404,48 @@ function Footer() {
         </div>
         <div className="mt-14 pt-6 border-t border-[color:var(--rkr-border)] flex flex-wrap justify-between items-center gap-3 font-[family-name:var(--font-mono)] text-[10px] tracking-widest text-[color:var(--rkr-muted)]">
           <span>© {new Date().getFullYear()} REKOR/OS · BUILD 24.0.1</span>
-          <span>MULTI-OBJECT TRACKING · COMPUTER VISION · COLLEGE PROJECT</span>
+          <span>MULTI-OBJECT TRACKING · COMPUTER VISION</span>
         </div>
       </div>
+
+      {openItem && (
+        <div
+          className="fixed inset-0 z-[80] grid place-items-center p-4 bg-black/70 backdrop-blur-sm"
+          onClick={() => setOpenItem(null)}
+        >
+          <div
+            className="relative w-full max-w-md rounded-lg border border-[color:var(--rkr-border)] bg-[color:var(--rkr-bg)] p-6 shadow-[0_30px_80px_-20px_rgba(255,92,0,0.35)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-[color:var(--rkr-primary)]">
+                {openItem.h}
+              </span>
+              <button
+                onClick={() => setOpenItem(null)}
+                aria-label="Close"
+                className="font-[family-name:var(--font-mono)] text-[11px] text-[color:var(--rkr-muted)] hover:text-[color:var(--rkr-fg)] transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            <h3 className="mt-3 font-[family-name:var(--font-display)] text-2xl font-extrabold tracking-tight">
+              {details[openItem.item]?.title ?? openItem.item}
+            </h3>
+            <p className="mt-3 text-[14px] leading-relaxed text-[color:var(--rkr-muted)]">
+              {details[openItem.item]?.body ?? "Details coming soon."}
+            </p>
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setOpenItem(null)}
+                className="font-[family-name:var(--font-mono)] text-[10.5px] uppercase tracking-[0.18em] bg-[color:var(--rkr-primary)] text-black px-4 py-2 rounded font-bold hover:bg-[color:var(--rkr-fg)] transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </footer>
   );
 }
