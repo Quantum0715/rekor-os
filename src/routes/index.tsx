@@ -1,7 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";
 
-const VideoTracker = lazy(() => import("@/components/VideoTracker"));
+const VideoUpload = lazy(() => import("@/components/VideoUpload"));
+
+function openUpload() {
+  const target = document.getElementById("hero");
+  if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+  // small delay lets the scroll happen before triggering the picker
+  setTimeout(() => window.dispatchEvent(new Event("rkr:open-upload")), 250);
+}
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -34,7 +41,6 @@ function Nav() {
             <a href="#tools" className="hover:text-[color:var(--rkr-fg)] transition-colors">Tools</a>
             <a href="#flow" className="hover:text-[color:var(--rkr-fg)] transition-colors">Pipeline</a>
             <a href="#advantages" className="hover:text-[color:var(--rkr-fg)] transition-colors">Advantages</a>
-            <a href="#docs" className="hover:text-[color:var(--rkr-fg)] transition-colors">Docs</a>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -42,7 +48,10 @@ function Nav() {
             <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
             SYSTEM_READY
           </div>
-          <button className="font-[family-name:var(--font-mono)] text-[10.5px] uppercase tracking-widest bg-[color:var(--rkr-fg)] text-black px-3.5 py-2 rounded hover:bg-[color:var(--rkr-primary)] transition-colors font-bold">
+          <button
+            onClick={openUpload}
+            className="font-[family-name:var(--font-mono)] text-[10.5px] uppercase tracking-widest bg-[color:var(--rkr-fg)] text-black px-3.5 py-2 rounded hover:bg-[color:var(--rkr-primary)] transition-colors font-bold"
+          >
             Launch
           </button>
         </div>
@@ -53,7 +62,7 @@ function Nav() {
 
 function Hero() {
   return (
-    <section className="relative border-b border-[color:var(--rkr-border)] overflow-hidden">
+    <section id="hero" className="relative border-b border-[color:var(--rkr-border)] overflow-hidden">
       {/* grid backdrop */}
       <div
         aria-hidden
@@ -84,11 +93,11 @@ function Hero() {
             track ID like an analyst at a light table.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <button className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.18em] font-bold bg-[color:var(--rkr-primary)] text-black px-5 py-3 rounded hover:bg-[color:var(--rkr-fg)] transition-colors">
+            <button
+              onClick={openUpload}
+              className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.18em] font-bold bg-[color:var(--rkr-primary)] text-black px-5 py-3 rounded hover:bg-[color:var(--rkr-fg)] transition-colors"
+            >
               Start Tracking →
-            </button>
-            <button className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.18em] bg-transparent text-[color:var(--rkr-fg)] px-5 py-3 rounded border border-[color:var(--rkr-border)] hover:border-[color:var(--rkr-fg)] transition-colors">
-              Watch Demo
             </button>
           </div>
           <div className="mt-10 grid grid-cols-3 gap-6 max-w-md">
