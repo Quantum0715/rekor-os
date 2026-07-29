@@ -142,7 +142,7 @@ function ClientTracker() {
         </div>
       }
     >
-      <VideoTracker />
+      <VideoUpload />
     </Suspense>
   );
 }
