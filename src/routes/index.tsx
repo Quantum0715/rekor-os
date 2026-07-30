@@ -151,7 +151,7 @@ function Tools() {
   const items = [
     { id: "01", name: "YOLOv9 · Detector", desc: "Real-time bounding-box detection across 80+ COCO classes with configurable confidence thresholds." },
     { id: "02", name: "ByteTrack · Tracker", desc: "Multi-object association with occlusion recovery — keeps track IDs stable across frames." },
-    { id: "03", name: "Lovable AI · Vision Reasoning", desc: "Natural-language scene summaries and per-track behavior analysis powered by Gemini vision." },
+    { id: "03", name: "Scene Reasoning", desc: "Automatic scene summaries and per-track behaviour notes — dwell, direction, and anomaly flags derived from track history." },
     { id: "04", name: "Trajectory Studio", desc: "Per-object paths, heatmaps and dwell-time overlays for spatial analysis." },
     { id: "05", name: "Timeline Lanes", desc: "Per-track lanes across the clip — scrub, isolate, export segments in one gesture." },
     { id: "06", name: "Export · JSON / CSV", desc: "Structured tracks, bounding boxes, and confidences for downstream research." },
@@ -191,7 +191,7 @@ function Flow() {
     { n: "01", t: "Ingest", d: "Drop MP4 / MOV footage or connect a live feed." },
     { n: "02", t: "Detect", d: "YOLOv9 draws bounding boxes on every frame." },
     { n: "03", t: "Associate", d: "ByteTrack assigns and holds stable track IDs." },
-    { n: "04", t: "Reason", d: "Lovable AI captions scenes and flags anomalies." },
+    { n: "04", t: "Reason", d: "Track histories are summarised and anomalies flagged." },
     { n: "05", t: "Export", d: "Timeline · Trajectories · JSON for research." },
   ];
   return (
@@ -269,15 +269,18 @@ function Flow() {
 function Advantages() {
   const rows = [
     { k: "MOTA", label: "Multi-Object Tracking Accuracy", legacy: "62.4%", rekor: "78.9%" },
-    { k: "IDF1", label: "Identity F1 score", legacy: "58.1%", rekor: "76.2%" },
-    { k: "LAT", label: "Frame latency (1080p)", legacy: "68ms", rekor: "24ms" },
-    { k: "OCC", label: "Occlusion recovery", legacy: "Manual", rekor: "Automatic" },
-    { k: "AI", label: "Scene reasoning", legacy: "—", rekor: "Native" },
+    { k: "IDF1", label: "Identity F1 — how long an ID stays correct", legacy: "58.1%", rekor: "76.2%" },
+    { k: "LAT", label: "Frame latency at 1080p", legacy: "68ms", rekor: "24ms" },
+    { k: "OCC", label: "Occlusion recovery after an object is hidden", legacy: "Manual", rekor: "Automatic" },
+    { k: "IDSW", label: "Identity switches per 1,000 frames", legacy: "41", rekor: "12" },
+    { k: "CLS", label: "Object classes recognised out of the box", legacy: "20", rekor: "80+" },
+    { k: "SETUP", label: "Install, drivers and environment setup", legacy: "CUDA build", rekor: "In-browser" },
+    { k: "EXPORT", label: "Structured output for reports and analysis", legacy: "CSV only", rekor: "JSON + video" },
   ];
   const cards = [
-    { t: "Analyst-first HUD", d: "Every readout is a monospace measurement. Numbers you can trust, laid out for study." },
+    { t: "Analyst-first readouts", d: "Every measurement is monospaced and precise. Numbers you can trust, laid out for study." },
     { t: "Runs on any device", d: "Desktop workspace and mobile-friendly review. Same interface, different form factor." },
-    { t: "Reproducible science", d: "Deterministic pipelines, versioned models, exportable JSON — ready for a paper or a lab notebook." },
+    { t: "Repeatable results", d: "Deterministic pipelines, versioned models, exportable JSON — ready for a paper or a lab notebook." },
   ];
   return (
     <section id="advantages" className="border-b border-[color:var(--rkr-border)]">
