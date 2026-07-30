@@ -175,6 +175,13 @@
     border-color: var(--color-border);
   }
 
+  :fullscreen {
+    aspect-ratio: auto !important;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 0 !important;
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
