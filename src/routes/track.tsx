@@ -37,6 +37,15 @@ function colorFor(label: string) {
   return LABEL_COLORS[label] ?? "#FF5C00";
 }
 
+function toggleFullscreen(el: HTMLElement | null) {
+  if (!el) return;
+  if (document.fullscreenElement) {
+    document.exitFullscreen?.();
+  } else {
+    el.requestFullscreen?.();
+  }
+}
+
 const STAGES = [
   { key: "load", label: "Loading model" },
   { key: "analyze", label: "Analyzing frames" },
