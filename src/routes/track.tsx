@@ -37,6 +37,15 @@ function colorFor(label: string) {
   return LABEL_COLORS[label] ?? "#FF5C00";
 }
 
+function toggleFullscreen(el: HTMLElement | null) {
+  if (!el) return;
+  if (document.fullscreenElement) {
+    document.exitFullscreen?.();
+  } else {
+    el.requestFullscreen?.();
+  }
+}
+
 const STAGES = [
   { key: "load", label: "Loading model" },
   { key: "analyze", label: "Analyzing frames" },
@@ -58,6 +67,8 @@ function TrackPage() {
   const originalRef = useRef<HTMLVideoElement>(null);
   const trackedRef = useRef<HTMLVideoElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
+  const originalWrapRef = useRef<HTMLDivElement>(null);
+  const trackedWrapRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
 
   // Read the uploaded file. If missing (direct nav), redirect home.
@@ -379,36 +390,61 @@ function TrackPage() {
                 : "Video ko frame-by-frame process kiya ja raha hai. YOLO detector har object identify karega aur bounding boxes cache karega playback ke liye."}
             </p>
 
-            {/* Stage list */}
-            <div className="mt-8 grid gap-2 max-w-2xl">
+            {/* Stage circles */}
+            <div className="mt-10 flex flex-wrap items-start gap-x-10 gap-y-8">
               {STAGES.map((s, i) => {
                 const done = i < currentStageIdx;
                 const active = i === currentStageIdx;
                 return (
-                  <div
-                    key={s.key}
-                    className={`flex items-center gap-3 border rounded px-3 py-2.5 font-[family-name:var(--font-mono)] text-[11px] tracking-widest uppercase ${
-                      active
-                        ? "border-[color:var(--rkr-primary)] bg-[color:var(--rkr-primary)]/10 text-[color:var(--rkr-fg)]"
-                        : done
-                          ? "border-[color:var(--rkr-border)] text-[color:var(--rkr-fg)]/70"
-                          : "border-[color:var(--rkr-border)] text-[color:var(--rkr-muted)]"
-                    }`}
-                  >
-                    <span
-                      className={`inline-block size-2 rounded-full ${
-                        active
-                          ? "bg-[color:var(--rkr-primary)] animate-pulse"
-                          : done
-                            ? "bg-emerald-500"
-                            : "bg-[color:var(--rkr-border)]"
+                  <div key={s.key} className="flex flex-col items-center text-center w-[128px]">
+                    <div
+                      className={`relative grid size-14 place-items-center rounded-full border-2 transition-colors ${
+                        done
+                          ? "border-emerald-500 bg-emerald-500/10"
+                          : active
+                            ? "border-[color:var(--rkr-primary)] bg-[color:var(--rkr-primary)]/10"
+                            : "border-[color:var(--rkr-border)] bg-transparent"
                       }`}
-                    />
-                    <span className="flex-1">{s.label}{active ? "…" : done ? " · done" : ""}</span>
-                    {active && !error && (
-                      <span className="text-[color:var(--rkr-primary)]">{progress}%</span>
-                    )}
-                    {done && <span className="text-emerald-400">✓</span>}
+                    >
+                      {active && !error && (
+                        <span className="absolute inset-0 rounded-full border-2 border-[color:var(--rkr-primary)]/40 animate-ping" />
+                      )}
+                      {done ? (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+                          <path
+                            d="M5 12.5l4.5 4.5L19 7.5"
+                            stroke="#10b981"
+                            strokeWidth="2.4"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      ) : (
+                        <span
+                          className={`font-[family-name:var(--font-mono)] text-[11px] tracking-widest ${
+                            active ? "text-[color:var(--rkr-primary)]" : "text-[color:var(--rkr-muted)]"
+                          }`}
+                        >
+                          {active && !error ? `${progress}%` : `0${i + 1}`}
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      className={`mt-3 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.16em] leading-snug ${
+                        done || active ? "text-[color:var(--rkr-fg)]" : "text-[color:var(--rkr-muted)]"
+                      }`}
+                    >
+                      {s.label}
+                    </div>
+                    <div className="mt-1.5 h-4 font-[family-name:var(--font-mono)] text-[9.5px] uppercase tracking-[0.22em]">
+                      {done ? (
+                        <span className="text-emerald-400">Done</span>
+                      ) : active && !error ? (
+                        <span className="text-[color:var(--rkr-primary)]">Running</span>
+                      ) : (
+                        <span className="text-[color:var(--rkr-muted)]/60">Waiting</span>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -468,15 +504,33 @@ function TrackPage() {
                     Source clip
                   </span>
                 </div>
-                <div className="aspect-video bg-black rounded-lg overflow-hidden border border-[color:var(--rkr-border)]">
+                <div
+                  ref={originalWrapRef}
+                  className="relative aspect-video bg-black rounded-lg overflow-hidden border border-[color:var(--rkr-border)]"
+                >
                   <video
                     ref={originalRef}
                     src={videoUrl}
                     controls
+                    controlsList="nofullscreen"
+                    disablePictureInPicture
                     playsInline
-                    className="w-full h-full object-contain"
+                    onPlay={() => trackedRef.current?.pause()}
+                    className="absolute inset-0 w-full h-full object-contain"
                   />
+                  <button
+                    type="button"
+                    onClick={() => toggleFullscreen(originalWrapRef.current)}
+                    aria-label="Fullscreen original video"
+                    className="absolute top-2 right-2 z-10 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-widest bg-black/70 text-white border border-white/15 px-2.5 py-1.5 rounded hover:bg-[color:var(--rkr-primary)] hover:text-black transition-colors"
+                  >
+                    ⛶ Full
+                  </button>
                 </div>
+                <p className="mt-3 text-[12px] leading-relaxed text-[color:var(--rkr-muted)]">
+                  Note: this is the untouched source clip — no detection is applied here. It is kept
+                  for side-by-side comparison only.
+                </p>
               </div>
 
               {/* Tracked */}
@@ -489,20 +543,39 @@ function TrackPage() {
                     With bounding boxes
                   </span>
                 </div>
-                <div className="relative aspect-video bg-black rounded-lg overflow-hidden border border-[color:var(--rkr-primary)]/40 shadow-[0_20px_60px_-20px_rgba(255,92,0,0.35)]">
+                <div
+                  ref={trackedWrapRef}
+                  className="relative aspect-video bg-black rounded-lg overflow-hidden border border-[color:var(--rkr-primary)]/40 shadow-[0_20px_60px_-20px_rgba(255,92,0,0.35)]"
+                >
                   <video
                     ref={trackedRef}
                     src={videoUrl}
                     controls
+                    controlsList="nofullscreen"
+                    disablePictureInPicture
                     playsInline
                     crossOrigin="anonymous"
+                    onPlay={() => originalRef.current?.pause()}
                     className="absolute inset-0 w-full h-full object-contain"
                   />
                   <canvas
                     ref={overlayRef}
                     className="absolute inset-0 w-full h-full object-contain pointer-events-none"
                   />
+                  <button
+                    type="button"
+                    onClick={() => toggleFullscreen(trackedWrapRef.current)}
+                    aria-label="Fullscreen tracked video"
+                    className="absolute top-2 right-2 z-10 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-widest bg-black/70 text-white border border-white/15 px-2.5 py-1.5 rounded hover:bg-[color:var(--rkr-primary)] hover:text-black transition-colors"
+                  >
+                    ⛶ Full
+                  </button>
                 </div>
+                <p className="mt-3 text-[12px] leading-relaxed text-[color:var(--rkr-muted)]">
+                  Note: boxes and labels are model predictions, not ground truth. Detection is only
+                  possible for objects clearly visible in the frame — accuracy depends on the
+                  model's training dataset, so this output is not 100% accurate.
+                </p>
               </div>
             </div>
 
@@ -526,6 +599,22 @@ function TrackPage() {
                 </div>
               </div>
             )}
+
+            {/* Accuracy disclaimer */}
+            <div className="mt-6 border border-[color:var(--rkr-border)] rounded-lg p-5 bg-[color:var(--rkr-surface)]/40">
+              <div className="flex items-center gap-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[color:var(--rkr-primary)]">
+                <span className="size-2 bg-[color:var(--rkr-primary)]" />
+                Accuracy note
+              </div>
+              <p className="mt-3 text-[13px] leading-relaxed text-[color:var(--rkr-muted)] max-w-3xl">
+                These results are not 100% accurate. The model can only detect and track objects
+                that are clearly visible in the frame — blurred, tiny, heavily occluded or
+                fast-moving objects may be missed or mislabelled. Detection quality depends
+                entirely on the dataset the model was trained on: the larger and more varied the
+                training data, the sharper the output. Every box and label here should be read as a
+                confidence-scored prediction, not as ground truth.
+              </p>
+            </div>
           </>
         )}
       </div>
