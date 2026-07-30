@@ -345,30 +345,68 @@ function Advantages() {
 }
 
 function Footer() {
-  const [openItem, setOpenItem] = useState<{ h: string; item: string } | null>(null);
+  const [openItem, setOpenItem] = useState<string | null>(null);
 
-  const details: Record<string, { title: string; body: string }> = {
-    // Product
-    "Workspace": { title: "Workspace", body: "Single-pane interface where uploaded footage, detections, and timelines live side-by-side. Built for long analytical sessions." },
-    "Timeline": { title: "Timeline", body: "Per-track lanes across the full clip. Scrub, isolate a single ID, or export a specific segment in one gesture." },
-    "Trajectories": { title: "Trajectories", body: "Per-object motion paths and dwell-time overlays for spatial analysis and heatmapping." },
-    "Export": { title: "Export", body: "Structured JSON of every frame, box and confidence — plus rendered video overlays for reports." },
-    // Research
-    "Model card": { title: "Model Card", body: "Detector: YOLOS-tiny (Xenova) running fully in-browser via WebGPU / WASM. Association: ByteTrack-style IOU + linear assignment." },
-    "Datasets": { title: "Datasets", body: "Trained on COCO 2017 — 80 everyday object classes including person, vehicle, animal, and household items." },
-    "Benchmarks": { title: "Benchmarks", body: "MOTA 78.9% · IDF1 76.2% · 24ms frame latency at 1080p on modern laptops." },
-    "Paper": { title: "Paper", body: "Undergraduate project report covering multi-object tracking pipeline, evaluation methodology and error analysis." },
-    // Project
-    "About": { title: "About", body: "Rekor/OS is a computer-vision project exploring how multi-object tracking can be delivered as an in-browser analyst workspace." },
-    "Team": { title: "Team", body: "Built by a small student team for a college computer-vision course. Design, engineering and evaluation done in-house." },
-    "GitHub": { title: "GitHub", body: "Source code and reproducibility artefacts live in a public repository — release notes tagged per milestone." },
-    "Contact": { title: "Contact", body: "For collaboration or feedback, reach out through the project's course portal or the contact address in the paper." },
-  };
+  const links: { key: string; label: string; title: string; body: string; icon: React.ReactNode }[] = [
+    {
+      key: "about",
+      label: "About",
+      title: "About Rekor/OS",
+      body: "Rekor/OS is a computer-vision project exploring how multi-object detection and tracking can run entirely inside the browser. Upload a clip, let the detector read every sampled frame, and review the original and tracked output side-by-side with exportable data.",
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
+          <path d="M12 10.5v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          <circle cx="12" cy="7.6" r="1" fill="currentColor" />
+        </svg>
+      ),
+    },
+    {
+      key: "contact",
+      label: "Contact",
+      title: "Contact",
+      body: "Questions, feedback or collaboration on the tracking pipeline are welcome. Reach the team through the course portal, or write to the project address listed in the report cover page. Bug reports with a sample clip get answered fastest.",
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.6" />
+          <path d="m3.5 7 8.5 6 8.5-6" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+        </svg>
+      ),
+    },
+    {
+      key: "social",
+      label: "Social media",
+      title: "Social media",
+      body: "Build logs, demo clips and evaluation charts are posted as the project evolves. Follow along for release notes on new detector weights, tracker tuning, and UI updates to the workspace.",
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <circle cx="6" cy="12" r="2.4" stroke="currentColor" strokeWidth="1.6" />
+          <circle cx="17" cy="6.5" r="2.4" stroke="currentColor" strokeWidth="1.6" />
+          <circle cx="17" cy="17.5" r="2.4" stroke="currentColor" strokeWidth="1.6" />
+          <path d="m8.2 10.9 6.6-3.3M8.2 13.1l6.6 3.3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+    {
+      key: "privacy",
+      label: "Privacy policy",
+      title: "Privacy policy",
+      body: "Your footage never leaves your device. Video is read locally in the browser, the detection model runs client-side, and no frames, detections or files are uploaded to any server. Nothing is stored — closing the tab clears everything.",
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path d="M12 3.5 5 6.2v5.1c0 4.3 2.9 7.6 7 9.2 4.1-1.6 7-4.9 7-9.2V6.2L12 3.5Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+          <path d="m9 12.2 2.1 2.1L15 10.4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ),
+    },
+  ];
+
+  const active = links.find((l) => l.key === openItem);
 
   return (
     <footer className="bg-[color:var(--rkr-surface)]">
       <div className="mx-auto max-w-[1360px] px-5 py-16">
-        <div className="grid md:grid-cols-[1.4fr_1fr_1fr_1fr] gap-10">
+        <div className="grid md:grid-cols-[1.4fr_1fr] gap-10 items-start">
           <div>
             <Logo />
             <p className="mt-5 text-[13px] leading-relaxed text-[color:var(--rkr-muted)] max-w-xs">
@@ -380,30 +418,21 @@ function Footer() {
               ALL SYSTEMS · NOMINAL
             </div>
           </div>
-          {[
-            { h: "Product", l: ["Workspace", "Timeline", "Trajectories", "Export"] },
-            { h: "Research", l: ["Model card", "Datasets", "Benchmarks", "Paper"] },
-            { h: "Project", l: ["About", "Team", "GitHub", "Contact"] },
-          ].map((col) => (
-            <div key={col.h}>
-              <h5 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-widest text-[color:var(--rkr-muted)]">
-                {col.h}
-              </h5>
-              <ul className="mt-4 space-y-2.5">
-                {col.l.map((x) => (
-                  <li key={x}>
-                    <button
-                      type="button"
-                      onClick={() => setOpenItem({ h: col.h, item: x })}
-                      className="text-left text-[13.5px] text-[color:var(--rkr-fg)]/85 hover:text-[color:var(--rkr-primary)] transition-colors"
-                    >
-                      {x}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {links.map((l) => (
+              <button
+                key={l.key}
+                type="button"
+                onClick={() => setOpenItem(l.key)}
+                className="group flex flex-col items-center gap-2.5 rounded-md border border-[color:var(--rkr-border)] px-3 py-4 text-[color:var(--rkr-muted)] hover:border-[color:var(--rkr-primary)] hover:text-[color:var(--rkr-primary)] transition-colors"
+              >
+                {l.icon}
+                <span className="font-[family-name:var(--font-mono)] text-[9.5px] uppercase tracking-[0.16em] text-center">
+                  {l.label}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
         <div className="mt-14 pt-6 border-t border-[color:var(--rkr-border)] flex flex-wrap justify-between items-center gap-3 font-[family-name:var(--font-mono)] text-[10px] tracking-widest text-[color:var(--rkr-muted)]">
           <span>© {new Date().getFullYear()} REKOR/OS · BUILD 24.0.1</span>
@@ -411,7 +440,7 @@ function Footer() {
         </div>
       </div>
 
-      {openItem && (
+      {active && (
         <div
           className="fixed inset-0 z-[80] grid place-items-center p-4 bg-black/70 backdrop-blur-sm"
           onClick={() => setOpenItem(null)}
@@ -421,8 +450,9 @@ function Footer() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between gap-3">
-              <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-[color:var(--rkr-primary)]">
-                {openItem.h}
+              <span className="flex items-center gap-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-[color:var(--rkr-primary)]">
+                {active.icon}
+                {active.label}
               </span>
               <button
                 onClick={() => setOpenItem(null)}
@@ -433,10 +463,10 @@ function Footer() {
               </button>
             </div>
             <h3 className="mt-3 font-[family-name:var(--font-display)] text-2xl font-extrabold tracking-tight">
-              {details[openItem.item]?.title ?? openItem.item}
+              {active.title}
             </h3>
             <p className="mt-3 text-[14px] leading-relaxed text-[color:var(--rkr-muted)]">
-              {details[openItem.item]?.body ?? "Details coming soon."}
+              {active.body}
             </p>
             <div className="mt-6 flex justify-end">
               <button
