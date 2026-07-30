@@ -599,6 +599,22 @@ function TrackPage() {
                 </div>
               </div>
             )}
+
+            {/* Accuracy disclaimer */}
+            <div className="mt-6 border border-[color:var(--rkr-border)] rounded-lg p-5 bg-[color:var(--rkr-surface)]/40">
+              <div className="flex items-center gap-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[color:var(--rkr-primary)]">
+                <span className="size-2 bg-[color:var(--rkr-primary)]" />
+                Accuracy note
+              </div>
+              <p className="mt-3 text-[13px] leading-relaxed text-[color:var(--rkr-muted)] max-w-3xl">
+                These results are not 100% accurate. The model can only detect and track objects
+                that are clearly visible in the frame — blurred, tiny, heavily occluded or
+                fast-moving objects may be missed or mislabelled. Detection quality depends
+                entirely on the dataset the model was trained on: the larger and more varied the
+                training data, the sharper the output. Every box and label here should be read as a
+                confidence-scored prediction, not as ground truth.
+              </p>
+            </div>
           </>
         )}
       </div>
