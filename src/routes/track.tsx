@@ -58,6 +58,8 @@ function TrackPage() {
   const originalRef = useRef<HTMLVideoElement>(null);
   const trackedRef = useRef<HTMLVideoElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
+  const originalWrapRef = useRef<HTMLDivElement>(null);
+  const trackedWrapRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
 
   // Read the uploaded file. If missing (direct nav), redirect home.
@@ -493,15 +495,33 @@ function TrackPage() {
                     Source clip
                   </span>
                 </div>
-                <div className="aspect-video bg-black rounded-lg overflow-hidden border border-[color:var(--rkr-border)]">
+                <div
+                  ref={originalWrapRef}
+                  className="relative aspect-video bg-black rounded-lg overflow-hidden border border-[color:var(--rkr-border)]"
+                >
                   <video
                     ref={originalRef}
                     src={videoUrl}
                     controls
+                    controlsList="nofullscreen"
+                    disablePictureInPicture
                     playsInline
-                    className="w-full h-full object-contain"
+                    onPlay={() => trackedRef.current?.pause()}
+                    className="absolute inset-0 w-full h-full object-contain"
                   />
+                  <button
+                    type="button"
+                    onClick={() => toggleFullscreen(originalWrapRef.current)}
+                    aria-label="Fullscreen original video"
+                    className="absolute top-2 right-2 z-10 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-widest bg-black/70 text-white border border-white/15 px-2.5 py-1.5 rounded hover:bg-[color:var(--rkr-primary)] hover:text-black transition-colors"
+                  >
+                    ⛶ Full
+                  </button>
                 </div>
+                <p className="mt-3 text-[12px] leading-relaxed text-[color:var(--rkr-muted)]">
+                  Note: this is the untouched source clip — no detection is applied here. It is kept
+                  for side-by-side comparison only.
+                </p>
               </div>
 
               {/* Tracked */}
@@ -514,20 +534,39 @@ function TrackPage() {
                     With bounding boxes
                   </span>
                 </div>
-                <div className="relative aspect-video bg-black rounded-lg overflow-hidden border border-[color:var(--rkr-primary)]/40 shadow-[0_20px_60px_-20px_rgba(255,92,0,0.35)]">
+                <div
+                  ref={trackedWrapRef}
+                  className="relative aspect-video bg-black rounded-lg overflow-hidden border border-[color:var(--rkr-primary)]/40 shadow-[0_20px_60px_-20px_rgba(255,92,0,0.35)]"
+                >
                   <video
                     ref={trackedRef}
                     src={videoUrl}
                     controls
+                    controlsList="nofullscreen"
+                    disablePictureInPicture
                     playsInline
                     crossOrigin="anonymous"
+                    onPlay={() => originalRef.current?.pause()}
                     className="absolute inset-0 w-full h-full object-contain"
                   />
                   <canvas
                     ref={overlayRef}
                     className="absolute inset-0 w-full h-full object-contain pointer-events-none"
                   />
+                  <button
+                    type="button"
+                    onClick={() => toggleFullscreen(trackedWrapRef.current)}
+                    aria-label="Fullscreen tracked video"
+                    className="absolute top-2 right-2 z-10 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-widest bg-black/70 text-white border border-white/15 px-2.5 py-1.5 rounded hover:bg-[color:var(--rkr-primary)] hover:text-black transition-colors"
+                  >
+                    ⛶ Full
+                  </button>
                 </div>
+                <p className="mt-3 text-[12px] leading-relaxed text-[color:var(--rkr-muted)]">
+                  Note: boxes and labels are model predictions, not ground truth. Detection is only
+                  possible for objects clearly visible in the frame — accuracy depends on the
+                  model's training dataset, so this output is not 100% accurate.
+                </p>
               </div>
             </div>
 
