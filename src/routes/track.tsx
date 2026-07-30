@@ -379,36 +379,61 @@ function TrackPage() {
                 : "Video ko frame-by-frame process kiya ja raha hai. YOLO detector har object identify karega aur bounding boxes cache karega playback ke liye."}
             </p>
 
-            {/* Stage list */}
-            <div className="mt-8 grid gap-2 max-w-2xl">
+            {/* Stage circles */}
+            <div className="mt-10 flex flex-wrap items-start gap-x-10 gap-y-8">
               {STAGES.map((s, i) => {
                 const done = i < currentStageIdx;
                 const active = i === currentStageIdx;
                 return (
-                  <div
-                    key={s.key}
-                    className={`flex items-center gap-3 border rounded px-3 py-2.5 font-[family-name:var(--font-mono)] text-[11px] tracking-widest uppercase ${
-                      active
-                        ? "border-[color:var(--rkr-primary)] bg-[color:var(--rkr-primary)]/10 text-[color:var(--rkr-fg)]"
-                        : done
-                          ? "border-[color:var(--rkr-border)] text-[color:var(--rkr-fg)]/70"
-                          : "border-[color:var(--rkr-border)] text-[color:var(--rkr-muted)]"
-                    }`}
-                  >
-                    <span
-                      className={`inline-block size-2 rounded-full ${
-                        active
-                          ? "bg-[color:var(--rkr-primary)] animate-pulse"
-                          : done
-                            ? "bg-emerald-500"
-                            : "bg-[color:var(--rkr-border)]"
+                  <div key={s.key} className="flex flex-col items-center text-center w-[128px]">
+                    <div
+                      className={`relative grid size-14 place-items-center rounded-full border-2 transition-colors ${
+                        done
+                          ? "border-emerald-500 bg-emerald-500/10"
+                          : active
+                            ? "border-[color:var(--rkr-primary)] bg-[color:var(--rkr-primary)]/10"
+                            : "border-[color:var(--rkr-border)] bg-transparent"
                       }`}
-                    />
-                    <span className="flex-1">{s.label}{active ? "…" : done ? " · done" : ""}</span>
-                    {active && !error && (
-                      <span className="text-[color:var(--rkr-primary)]">{progress}%</span>
-                    )}
-                    {done && <span className="text-emerald-400">✓</span>}
+                    >
+                      {active && !error && (
+                        <span className="absolute inset-0 rounded-full border-2 border-[color:var(--rkr-primary)]/40 animate-ping" />
+                      )}
+                      {done ? (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+                          <path
+                            d="M5 12.5l4.5 4.5L19 7.5"
+                            stroke="#10b981"
+                            strokeWidth="2.4"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      ) : (
+                        <span
+                          className={`font-[family-name:var(--font-mono)] text-[11px] tracking-widest ${
+                            active ? "text-[color:var(--rkr-primary)]" : "text-[color:var(--rkr-muted)]"
+                          }`}
+                        >
+                          {active && !error ? `${progress}%` : `0${i + 1}`}
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      className={`mt-3 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.16em] leading-snug ${
+                        done || active ? "text-[color:var(--rkr-fg)]" : "text-[color:var(--rkr-muted)]"
+                      }`}
+                    >
+                      {s.label}
+                    </div>
+                    <div className="mt-1.5 h-4 font-[family-name:var(--font-mono)] text-[9.5px] uppercase tracking-[0.22em]">
+                      {done ? (
+                        <span className="text-emerald-400">Done</span>
+                      ) : active && !error ? (
+                        <span className="text-[color:var(--rkr-primary)]">Running</span>
+                      ) : (
+                        <span className="text-[color:var(--rkr-muted)]/60">Waiting</span>
+                      )}
+                    </div>
                   </div>
                 );
               })}
