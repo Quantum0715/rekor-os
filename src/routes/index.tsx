@@ -154,12 +154,12 @@ function Tools() {
     { id: "03", name: "Scene Reasoning", desc: "Automatic scene summaries and per-track behaviour notes — dwell, direction, and anomaly flags derived from track history." },
     { id: "04", name: "Trajectory Studio", desc: "Per-object paths, heatmaps and dwell-time overlays for spatial analysis." },
     { id: "05", name: "Timeline Lanes", desc: "Per-track lanes across the clip — scrub, isolate, export segments in one gesture." },
-    { id: "06", name: "Export · JSON / CSV", desc: "Structured tracks, bounding boxes, and confidences for downstream research." },
+    { id: "06", name: "Export · Video / JSON / CSV", desc: "Structured tracks, bounding boxes, and confidences for downstream research." },
   ];
   return (
     <section id="tools" className="border-b border-[color:var(--rkr-border)]">
       <div className="mx-auto max-w-[1360px] px-5 py-24">
-        <SectionHeader kicker="§ 01 · Toolchain" title="Every tool an analyst needs, one workspace." />
+        <SectionHeader kicker="01 · Toolchain" title="Every tool an analyst needs, one workspace." />
         <div className="mt-14 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-[color:var(--rkr-border)] border border-[color:var(--rkr-border)]">
           {items.map((t) => (
             <div
@@ -192,12 +192,12 @@ function Flow() {
     { n: "02", t: "Detect", d: "YOLOv9 draws bounding boxes on every frame." },
     { n: "03", t: "Associate", d: "ByteTrack assigns and holds stable track IDs." },
     { n: "04", t: "Reason", d: "Track histories are summarised and anomalies flagged." },
-    { n: "05", t: "Export", d: "Timeline · Trajectories · JSON for research." },
+    { n: "05", t: "Export · Video", d: "Tracked video, timeline, trajectories and JSON for research." },
   ];
   return (
     <section id="flow" className="border-b border-[color:var(--rkr-border)] bg-[color:var(--rkr-surface)]">
       <div className="mx-auto max-w-[1360px] px-5 py-24">
-        <SectionHeader kicker="§ 02 · Pipeline" title="How a frame becomes a track." />
+        <SectionHeader kicker="02 · Pipeline" title="How a frame becomes a track." />
 
         {/* Desktop flow */}
         <div className="mt-14 hidden lg:block relative">
@@ -285,7 +285,7 @@ function Advantages() {
   return (
     <section id="advantages" className="border-b border-[color:var(--rkr-border)]">
       <div className="mx-auto max-w-[1360px] px-5 py-24">
-        <SectionHeader kicker="§ 03 · Advantages" title="Why Rekor/OS holds up under review." />
+        <SectionHeader kicker="03 · Advantages" title="Why Rekor/OS holds up under review." />
 
         <div className="mt-14 grid lg:grid-cols-[1.2fr_1fr] gap-10">
           {/* Comparison table */}
@@ -410,8 +410,11 @@ function Footer() {
           <div>
             <Logo />
             <p className="mt-5 text-[13px] leading-relaxed text-[color:var(--rkr-muted)] max-w-xs">
-              A precision workspace for multi-object tracking in video. Built as a
-              computer-vision research project.
+              Rekor/OS is a browser-based computer-vision workspace. Upload any video and
+              it detects every visible object frame by frame, tracks each one across the
+              clip, draws labelled bounding boxes with confidence scores, and lets you
+              review original vs tracked output side by side — then export the tracked
+              video and its detection data as JSON.
             </p>
             <div className="mt-5 flex items-center gap-2 font-[family-name:var(--font-mono)] text-[10px] tracking-widest text-[color:var(--rkr-muted)]">
               <span className="size-1.5 rounded-full bg-emerald-500" />
