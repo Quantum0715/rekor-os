@@ -63,6 +63,7 @@ function TrackPage() {
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<FrameResult[] | null>(null);
   const [recording, setRecording] = useState(false);
+  const [showReview, setShowReview] = useState(false);
 
   const originalRef = useRef<HTMLVideoElement>(null);
   const trackedRef = useRef<HTMLVideoElement>(null);
@@ -170,13 +171,26 @@ function TrackPage() {
 
         // Stage 3: framing
         setStage("frame");
-        setProgress(50);
-        await new Promise((r) => setTimeout(r, 350));
-        setProgress(100);
+        setProgress(0);
+        for (let p = 0; p <= 100; p += 10) {
+          if (cancelled) return;
+          setProgress(p);
+          await new Promise((r) => setTimeout(r, 60));
+        }
 
-        // Stage 4: done
+        // Stage 4: tracking successful
         setResults(frames);
         setStage("done");
+        setProgress(0);
+        for (let p = 0; p <= 100; p += 20) {
+          if (cancelled) return;
+          setProgress(p);
+          await new Promise((r) => setTimeout(r, 70));
+        }
+        if (cancelled) return;
+        await new Promise((r) => setTimeout(r, 500));
+        if (cancelled) return;
+        setShowReview(true);
       } catch (e: any) {
         if (cancelled) return;
         console.error(e);
@@ -191,7 +205,7 @@ function TrackPage() {
 
   // Overlay: draw the nearest cached detections onto canvas as tracked video plays.
   useEffect(() => {
-    if (stage !== "done" || !results) return;
+    if (!showReview || !results) return;
     const video = trackedRef.current;
     const canvas = overlayRef.current;
     if (!video || !canvas) return;
@@ -249,7 +263,7 @@ function TrackPage() {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [stage, results]);
+  }, [showReview, results]);
 
   const counts = useMemo(() => {
     if (!results) return {};
@@ -370,10 +384,10 @@ function TrackPage() {
 
       <div className="mx-auto max-w-[1360px] px-5 py-10">
         {/* Processing panel */}
-        {stage !== "done" && (
-          <div className="border border-[color:var(--rkr-border)] rounded-lg p-8 bg-[color:var(--rkr-surface)]/40">
+        {!showReview && (
+          <div className="border border-[color:var(--rkr-border)] rounded-lg p-8 bg-[color:var(--rkr-surface)]/40 text-center">
             <div className="font-[family-name:var(--font-mono)] text-[10.5px] uppercase tracking-[0.24em] text-[color:var(--rkr-primary)]">
-              § Processing
+              Processing
             </div>
             <h1 className="mt-3 font-[family-name:var(--font-display)] text-[clamp(1.8rem,3.4vw,2.6rem)] leading-tight tracking-tight font-extrabold">
               {error
@@ -382,19 +396,22 @@ function TrackPage() {
                   ? "Loading detection model…"
                   : stage === "analyze"
                     ? "Analyzing every frame…"
-                    : "Framing tracked objects…"}
+                    : stage === "frame"
+                      ? "Framing tracked objects…"
+                      : "Tracking successful."}
             </h1>
-            <p className="mt-3 text-[14px] text-[color:var(--rkr-muted)] max-w-2xl">
+            <p className="mt-3 text-[14px] text-[color:var(--rkr-muted)] max-w-2xl mx-auto">
               {error
                 ? error
-                : "Video ko frame-by-frame process kiya ja raha hai. YOLO detector har object identify karega aur bounding boxes cache karega playback ke liye."}
+                : "The video is being processed frame by frame. The YOLO detector identifies every visible object and caches the bounding boxes for smooth playback."}
             </p>
 
             {/* Stage circles */}
-            <div className="mt-10 flex flex-wrap items-start gap-x-10 gap-y-8">
+            <div className="mt-10 flex flex-wrap items-start justify-center gap-x-10 gap-y-8">
               {STAGES.map((s, i) => {
-                const done = i < currentStageIdx;
-                const active = i === currentStageIdx;
+                const allDone = stage === "done" && progress >= 100;
+                const done = allDone || i < currentStageIdx;
+                const active = !allDone && i === currentStageIdx;
                 return (
                   <div key={s.key} className="flex flex-col items-center text-center w-[128px]">
                     <div
@@ -451,7 +468,7 @@ function TrackPage() {
             </div>
 
             {!error && (
-              <div className="mt-6 h-1 rounded bg-white/5 overflow-hidden max-w-2xl">
+              <div className="mt-6 h-1 rounded bg-white/5 overflow-hidden max-w-2xl mx-auto">
                 <div
                   className="h-full bg-[color:var(--rkr-primary)] transition-all"
                   style={{ width: `${progress}%` }}
@@ -462,12 +479,12 @@ function TrackPage() {
         )}
 
         {/* Dual video review */}
-        {stage === "done" && videoUrl && (
+        {showReview && videoUrl && (
           <>
             <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
               <div>
                 <div className="font-[family-name:var(--font-mono)] text-[10.5px] uppercase tracking-[0.24em] text-[color:var(--rkr-primary)]">
-                  § Review
+                  Review
                 </div>
                 <h1 className="mt-2 font-[family-name:var(--font-display)] text-[clamp(1.8rem,3.4vw,2.6rem)] font-extrabold tracking-tight">
                   Tracking successful.
@@ -522,9 +539,12 @@ function TrackPage() {
                     type="button"
                     onClick={() => toggleFullscreen(originalWrapRef.current)}
                     aria-label="Fullscreen original video"
-                    className="absolute top-2 right-2 z-10 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-widest bg-black/70 text-white border border-white/15 px-2.5 py-1.5 rounded hover:bg-[color:var(--rkr-primary)] hover:text-black transition-colors"
+                    title="Full size"
+                    className="absolute bottom-12 right-2 z-10 grid size-9 place-items-center rounded bg-black/70 text-white border border-white/15 hover:bg-[color:var(--rkr-primary)] hover:text-black transition-colors sm:bottom-14"
                   >
-                    ⛶ Full
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
                   </button>
                 </div>
                 <p className="mt-3 text-[12px] leading-relaxed text-[color:var(--rkr-muted)]">
@@ -566,9 +586,12 @@ function TrackPage() {
                     type="button"
                     onClick={() => toggleFullscreen(trackedWrapRef.current)}
                     aria-label="Fullscreen tracked video"
-                    className="absolute top-2 right-2 z-10 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-widest bg-black/70 text-white border border-white/15 px-2.5 py-1.5 rounded hover:bg-[color:var(--rkr-primary)] hover:text-black transition-colors"
+                    title="Full size"
+                    className="absolute bottom-12 right-2 z-10 grid size-9 place-items-center rounded bg-black/70 text-white border border-white/15 hover:bg-[color:var(--rkr-primary)] hover:text-black transition-colors sm:bottom-14"
                   >
-                    ⛶ Full
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
                   </button>
                 </div>
                 <p className="mt-3 text-[12px] leading-relaxed text-[color:var(--rkr-muted)]">
