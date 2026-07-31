@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";
+import logoAsset from "@/assets/rekor-os-logo.png.asset.json";
 
 const VideoUpload = lazy(() => import("@/components/VideoUpload"));
 
@@ -17,13 +18,13 @@ export const Route = createFileRoute("/")({
 function Logo({ className = "" }: { className?: string }) {
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden>
-        <rect x="1" y="1" width="20" height="20" rx="3" fill="#FF5C00" />
-        <rect x="1" y="1" width="20" height="20" rx="3" stroke="#FF5C00" strokeOpacity=".2" />
-        <path d="M11 4v3M11 15v3M4 11h3M15 11h3" stroke="#0B0B0C" strokeWidth="1.4" strokeLinecap="square" />
-        <rect x="8" y="8" width="6" height="6" stroke="#0B0B0C" strokeWidth="1.4" />
-        <circle cx="11" cy="11" r="1" fill="#0B0B0C" />
-      </svg>
+      <span className="relative block size-8 shrink-0 overflow-hidden rounded">
+        <img
+          src={logoAsset.url}
+          alt="Rekor/OS logo"
+          className="absolute -left-[52%] -top-[34%] h-[200%] w-[200%] max-w-none object-cover"
+        />
+      </span>
       <span className="font-[family-name:var(--font-display)] text-[13px] tracking-tight uppercase font-extrabold text-[color:var(--rkr-fg)]">
         Rekor<span className="text-[color:var(--rkr-primary)]">/OS</span>
       </span>
@@ -406,10 +407,10 @@ function Footer() {
   return (
     <footer className="bg-[color:var(--rkr-surface)]">
       <div className="mx-auto max-w-[1360px] px-5 py-16">
-        <div className="grid md:grid-cols-[1.4fr_1fr] gap-10 items-start">
-          <div>
+        <div className="grid md:grid-cols-[1.9fr_1fr] gap-10 lg:gap-16 items-start">
+          <div className="max-w-2xl">
             <Logo />
-            <p className="mt-5 text-[13px] leading-relaxed text-[color:var(--rkr-muted)] max-w-xs">
+            <p className="mt-5 text-[13.5px] leading-relaxed text-[color:var(--rkr-muted)]">
               Rekor/OS is a browser-based computer-vision workspace. Upload any video and
               it detects every visible object frame by frame, tracks each one across the
               clip, draws labelled bounding boxes with confidence scores, and lets you
@@ -421,7 +422,7 @@ function Footer() {
               ALL SYSTEMS · NOMINAL
             </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 gap-3 md:self-stretch">
             {links.map((l) => (
               <button
                 key={l.key}
