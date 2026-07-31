@@ -384,10 +384,10 @@ function TrackPage() {
 
       <div className="mx-auto max-w-[1360px] px-5 py-10">
         {/* Processing panel */}
-        {stage !== "done" && (
-          <div className="border border-[color:var(--rkr-border)] rounded-lg p-8 bg-[color:var(--rkr-surface)]/40">
+        {!showReview && (
+          <div className="border border-[color:var(--rkr-border)] rounded-lg p-8 bg-[color:var(--rkr-surface)]/40 text-center">
             <div className="font-[family-name:var(--font-mono)] text-[10.5px] uppercase tracking-[0.24em] text-[color:var(--rkr-primary)]">
-              § Processing
+              Processing
             </div>
             <h1 className="mt-3 font-[family-name:var(--font-display)] text-[clamp(1.8rem,3.4vw,2.6rem)] leading-tight tracking-tight font-extrabold">
               {error
@@ -396,19 +396,22 @@ function TrackPage() {
                   ? "Loading detection model…"
                   : stage === "analyze"
                     ? "Analyzing every frame…"
-                    : "Framing tracked objects…"}
+                    : stage === "frame"
+                      ? "Framing tracked objects…"
+                      : "Tracking successful."}
             </h1>
-            <p className="mt-3 text-[14px] text-[color:var(--rkr-muted)] max-w-2xl">
+            <p className="mt-3 text-[14px] text-[color:var(--rkr-muted)] max-w-2xl mx-auto">
               {error
                 ? error
-                : "Video ko frame-by-frame process kiya ja raha hai. YOLO detector har object identify karega aur bounding boxes cache karega playback ke liye."}
+                : "The video is being processed frame by frame. The YOLO detector identifies every visible object and caches the bounding boxes for smooth playback."}
             </p>
 
             {/* Stage circles */}
-            <div className="mt-10 flex flex-wrap items-start gap-x-10 gap-y-8">
+            <div className="mt-10 flex flex-wrap items-start justify-center gap-x-10 gap-y-8">
               {STAGES.map((s, i) => {
-                const done = i < currentStageIdx;
-                const active = i === currentStageIdx;
+                const allDone = stage === "done" && progress >= 100;
+                const done = allDone || i < currentStageIdx;
+                const active = !allDone && i === currentStageIdx;
                 return (
                   <div key={s.key} className="flex flex-col items-center text-center w-[128px]">
                     <div
@@ -465,7 +468,7 @@ function TrackPage() {
             </div>
 
             {!error && (
-              <div className="mt-6 h-1 rounded bg-white/5 overflow-hidden max-w-2xl">
+              <div className="mt-6 h-1 rounded bg-white/5 overflow-hidden max-w-2xl mx-auto">
                 <div
                   className="h-full bg-[color:var(--rkr-primary)] transition-all"
                   style={{ width: `${progress}%` }}
