@@ -479,12 +479,12 @@ function TrackPage() {
         )}
 
         {/* Dual video review */}
-        {stage === "done" && videoUrl && (
+        {showReview && videoUrl && (
           <>
             <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
               <div>
                 <div className="font-[family-name:var(--font-mono)] text-[10.5px] uppercase tracking-[0.24em] text-[color:var(--rkr-primary)]">
-                  § Review
+                  Review
                 </div>
                 <h1 className="mt-2 font-[family-name:var(--font-display)] text-[clamp(1.8rem,3.4vw,2.6rem)] font-extrabold tracking-tight">
                   Tracking successful.
@@ -539,9 +539,12 @@ function TrackPage() {
                     type="button"
                     onClick={() => toggleFullscreen(originalWrapRef.current)}
                     aria-label="Fullscreen original video"
-                    className="absolute top-2 right-2 z-10 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-widest bg-black/70 text-white border border-white/15 px-2.5 py-1.5 rounded hover:bg-[color:var(--rkr-primary)] hover:text-black transition-colors"
+                    title="Full size"
+                    className="absolute bottom-12 right-2 z-10 grid size-9 place-items-center rounded bg-black/70 text-white border border-white/15 hover:bg-[color:var(--rkr-primary)] hover:text-black transition-colors sm:bottom-14"
                   >
-                    ⛶ Full
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
                   </button>
                 </div>
                 <p className="mt-3 text-[12px] leading-relaxed text-[color:var(--rkr-muted)]">
@@ -583,9 +586,12 @@ function TrackPage() {
                     type="button"
                     onClick={() => toggleFullscreen(trackedWrapRef.current)}
                     aria-label="Fullscreen tracked video"
-                    className="absolute top-2 right-2 z-10 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-widest bg-black/70 text-white border border-white/15 px-2.5 py-1.5 rounded hover:bg-[color:var(--rkr-primary)] hover:text-black transition-colors"
+                    title="Full size"
+                    className="absolute bottom-12 right-2 z-10 grid size-9 place-items-center rounded bg-black/70 text-white border border-white/15 hover:bg-[color:var(--rkr-primary)] hover:text-black transition-colors sm:bottom-14"
                   >
-                    ⛶ Full
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
                   </button>
                 </div>
                 <p className="mt-3 text-[12px] leading-relaxed text-[color:var(--rkr-muted)]">
