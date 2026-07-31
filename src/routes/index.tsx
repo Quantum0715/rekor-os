@@ -407,10 +407,10 @@ function Footer() {
   return (
     <footer className="bg-[color:var(--rkr-surface)]">
       <div className="mx-auto max-w-[1360px] px-5 py-16">
-        <div className="grid md:grid-cols-[1.4fr_1fr] gap-10 items-start">
-          <div>
+        <div className="grid md:grid-cols-[1.9fr_1fr] gap-10 lg:gap-16 items-start">
+          <div className="max-w-2xl">
             <Logo />
-            <p className="mt-5 text-[13px] leading-relaxed text-[color:var(--rkr-muted)] max-w-xs">
+            <p className="mt-5 text-[13.5px] leading-relaxed text-[color:var(--rkr-muted)]">
               Rekor/OS is a browser-based computer-vision workspace. Upload any video and
               it detects every visible object frame by frame, tracks each one across the
               clip, draws labelled bounding boxes with confidence scores, and lets you
@@ -422,7 +422,7 @@ function Footer() {
               ALL SYSTEMS · NOMINAL
             </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 gap-3 md:self-stretch">
             {links.map((l) => (
               <button
                 key={l.key}
