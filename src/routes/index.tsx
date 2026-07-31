@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";
+import logoAsset from "@/assets/rekor-os-logo.png.asset.json";
 
 const VideoUpload = lazy(() => import("@/components/VideoUpload"));
 
@@ -17,13 +18,13 @@ export const Route = createFileRoute("/")({
 function Logo({ className = "" }: { className?: string }) {
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden>
-        <rect x="1" y="1" width="20" height="20" rx="3" fill="#FF5C00" />
-        <rect x="1" y="1" width="20" height="20" rx="3" stroke="#FF5C00" strokeOpacity=".2" />
-        <path d="M11 4v3M11 15v3M4 11h3M15 11h3" stroke="#0B0B0C" strokeWidth="1.4" strokeLinecap="square" />
-        <rect x="8" y="8" width="6" height="6" stroke="#0B0B0C" strokeWidth="1.4" />
-        <circle cx="11" cy="11" r="1" fill="#0B0B0C" />
-      </svg>
+      <span className="relative block size-8 shrink-0 overflow-hidden rounded">
+        <img
+          src={logoAsset.url}
+          alt="Rekor/OS logo"
+          className="absolute -left-[52%] -top-[34%] h-[200%] w-[200%] max-w-none object-cover"
+        />
+      </span>
       <span className="font-[family-name:var(--font-display)] text-[13px] tracking-tight uppercase font-extrabold text-[color:var(--rkr-fg)]">
         Rekor<span className="text-[color:var(--rkr-primary)]">/OS</span>
       </span>
