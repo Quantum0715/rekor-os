@@ -540,9 +540,9 @@ function TrackPage() {
                     onClick={() => toggleFullscreen(originalWrapRef.current)}
                     aria-label="Fullscreen original video"
                     title="Full size"
-                    className="absolute bottom-12 right-2 z-10 grid size-9 place-items-center rounded bg-black/70 text-white border border-white/15 hover:bg-[color:var(--rkr-primary)] hover:text-black transition-colors sm:bottom-14"
+                    className="absolute bottom-1 right-1 z-20 grid size-9 place-items-center rounded bg-black/85 text-white hover:text-[color:var(--rkr-primary)] transition-colors sm:size-10"
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
                       <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </button>
@@ -587,9 +587,9 @@ function TrackPage() {
                     onClick={() => toggleFullscreen(trackedWrapRef.current)}
                     aria-label="Fullscreen tracked video"
                     title="Full size"
-                    className="absolute bottom-12 right-2 z-10 grid size-9 place-items-center rounded bg-black/70 text-white border border-white/15 hover:bg-[color:var(--rkr-primary)] hover:text-black transition-colors sm:bottom-14"
+                    className="absolute bottom-1 right-1 z-20 grid size-9 place-items-center rounded bg-black/85 text-white hover:text-[color:var(--rkr-primary)] transition-colors sm:size-10"
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
                       <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </button>
@@ -624,12 +624,12 @@ function TrackPage() {
             )}
 
             {/* Accuracy disclaimer */}
-            <div className="mt-6 border border-[color:var(--rkr-border)] rounded-lg p-5 bg-[color:var(--rkr-surface)]/40">
-              <div className="flex items-center gap-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[color:var(--rkr-primary)]">
+            <div className="mt-6 border border-[color:var(--rkr-border)] rounded-lg p-5 bg-[color:var(--rkr-surface)]/40 text-center">
+              <div className="flex items-center justify-center gap-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[color:var(--rkr-primary)]">
                 <span className="size-2 bg-[color:var(--rkr-primary)]" />
                 Accuracy note
               </div>
-              <p className="mt-3 text-[13px] leading-relaxed text-[color:var(--rkr-muted)] max-w-3xl">
+              <p className="mt-3 text-[13px] leading-relaxed text-[color:var(--rkr-muted)] max-w-3xl mx-auto">
                 These results are not 100% accurate. The model can only detect and track objects
                 that are clearly visible in the frame — blurred, tiny, heavily occluded or
                 fast-moving objects may be missed or mislabelled. Detection quality depends
