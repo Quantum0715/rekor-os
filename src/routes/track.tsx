@@ -63,6 +63,7 @@ function TrackPage() {
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<FrameResult[] | null>(null);
   const [recording, setRecording] = useState(false);
+  const [showReview, setShowReview] = useState(false);
 
   const originalRef = useRef<HTMLVideoElement>(null);
   const trackedRef = useRef<HTMLVideoElement>(null);
@@ -170,13 +171,26 @@ function TrackPage() {
 
         // Stage 3: framing
         setStage("frame");
-        setProgress(50);
-        await new Promise((r) => setTimeout(r, 350));
-        setProgress(100);
+        setProgress(0);
+        for (let p = 0; p <= 100; p += 10) {
+          if (cancelled) return;
+          setProgress(p);
+          await new Promise((r) => setTimeout(r, 60));
+        }
 
-        // Stage 4: done
+        // Stage 4: tracking successful
         setResults(frames);
         setStage("done");
+        setProgress(0);
+        for (let p = 0; p <= 100; p += 20) {
+          if (cancelled) return;
+          setProgress(p);
+          await new Promise((r) => setTimeout(r, 70));
+        }
+        if (cancelled) return;
+        await new Promise((r) => setTimeout(r, 500));
+        if (cancelled) return;
+        setShowReview(true);
       } catch (e: any) {
         if (cancelled) return;
         console.error(e);
@@ -191,7 +205,7 @@ function TrackPage() {
 
   // Overlay: draw the nearest cached detections onto canvas as tracked video plays.
   useEffect(() => {
-    if (stage !== "done" || !results) return;
+    if (!showReview || !results) return;
     const video = trackedRef.current;
     const canvas = overlayRef.current;
     if (!video || !canvas) return;
@@ -249,7 +263,7 @@ function TrackPage() {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [stage, results]);
+  }, [showReview, results]);
 
   const counts = useMemo(() => {
     if (!results) return {};
