@@ -45,10 +45,15 @@ function LivePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const detectorRef = useRef<any>(null);
+  const rawImageRef = useRef<any>(null);
+  const offRef = useRef<HTMLCanvasElement | null>(null);
+
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const detsRef = useRef<Detection[]>([]);
+  const targetsRef = useRef<Detection[]>([]);
+
   const busyRef = useRef(false);
   const rafRef = useRef<number | null>(null);
   const lastRef = useRef(performance.now());
@@ -68,19 +73,40 @@ function LivePage() {
     setError(null);
     setStatus("loading");
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } }, audio: false });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 960 }, frameRate: { ideal: 30 } },
+        audio: false,
+      });
       streamRef.current = stream;
       const video = videoRef.current!;
       video.srcObject = stream;
       await video.play();
 
-      const { pipeline, env } = await import("@huggingface/transformers");
+      const { pipeline, env, RawImage } = await import("@huggingface/transformers");
       env.allowLocalModels = false;
-      detectorRef.current = await pipeline("object-detection", "Xenova/yolos-tiny", {
-        progress_callback: (p: any) => {
-          if (p.status === "progress" && typeof p.progress === "number") setModelProgress(Math.round(p.progress));
-        },
-      });
+      rawImageRef.current = RawImage;
+      try {
+        const threads = Math.min(4, Math.max(1, (navigator.hardwareConcurrency || 4) - 1));
+        (env.backends as any).onnx.wasm.numThreads = threads;
+      } catch {
+        /* ignore */
+      }
+
+      const supportsWebGPU = typeof navigator !== "undefined" && "gpu" in navigator;
+      const load = (opts: any) =>
+        pipeline("object-detection", "Xenova/yolos-tiny", {
+          ...opts,
+          progress_callback: (p: any) => {
+            if (p.status === "progress" && typeof p.progress === "number") setModelProgress(Math.round(p.progress));
+          },
+        });
+      try {
+        detectorRef.current = supportsWebGPU
+          ? await load({ device: "webgpu", dtype: "fp16" })
+          : await load({ dtype: "q8" });
+      } catch {
+        detectorRef.current = await load({ dtype: "q8" });
+      }
 
       setStatus("live");
       runningRef.current = true;
@@ -94,12 +120,55 @@ function LivePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+
   // Composite loop: camera frame + boxes onto the visible canvas (also the recording source).
   const renderLoop = useCallback(() => {
+    // Ease existing boxes toward the newest detections so motion looks smooth
+    // between inference passes instead of jumping.
+    const smooth = () => {
+      const targets = targetsRef.current;
+      const prev = detsRef.current;
+      const used = new Set<number>();
+      const next: Detection[] = targets.map((t) => {
+        let bestIdx = -1;
+        let bestDist = Infinity;
+        prev.forEach((p, i) => {
+          if (used.has(i) || p.label !== t.label) return;
+          const d =
+            Math.abs(p.box.xmin - t.box.xmin) +
+            Math.abs(p.box.ymin - t.box.ymin) +
+            Math.abs(p.box.xmax - t.box.xmax) +
+            Math.abs(p.box.ymax - t.box.ymax);
+          if (d < bestDist) {
+            bestDist = d;
+            bestIdx = i;
+          }
+        });
+        const span = Math.max(1, t.box.xmax - t.box.xmin) * 3;
+        if (bestIdx === -1 || bestDist > span) return t;
+        used.add(bestIdx);
+        const p = prev[bestIdx]!;
+        const k = 0.35;
+        const lerp = (a: number, b: number) => a + (b - a) * k;
+        return {
+          ...t,
+          box: {
+            xmin: lerp(p.box.xmin, t.box.xmin),
+            ymin: lerp(p.box.ymin, t.box.ymin),
+            xmax: lerp(p.box.xmax, t.box.xmax),
+            ymax: lerp(p.box.ymax, t.box.ymax),
+          },
+        };
+      });
+      detsRef.current = next;
+    };
+
     const draw = () => {
       if (!runningRef.current) return;
+      smooth();
       const video = videoRef.current;
       const canvas = canvasRef.current;
+
       if (video && canvas && video.videoWidth) {
         const w = video.videoWidth;
         const h = video.videoHeight;
@@ -139,36 +208,50 @@ function LivePage() {
     while (runningRef.current) {
       const video = videoRef.current;
       const detector = detectorRef.current;
-      if (!video || !detector || !video.videoWidth || busyRef.current) {
-        await new Promise((r) => setTimeout(r, 60));
+      const RawImage = rawImageRef.current;
+      if (!video || !detector || !RawImage || !video.videoWidth || busyRef.current) {
+        await new Promise((r) => setTimeout(r, 50));
         continue;
       }
       busyRef.current = true;
       try {
-        const off = document.createElement("canvas");
-        const scale = Math.min(1, 480 / video.videoWidth);
-        off.width = Math.round(video.videoWidth * scale);
-        off.height = Math.round(video.videoHeight * scale);
-        const octx = off.getContext("2d")!;
-        octx.drawImage(video, 0, 0, off.width, off.height);
-        const raw: Detection[] = await detector(off.toDataURL("image/jpeg", 0.7), { threshold: 0.35, percentage: false });
-        const sx = video.videoWidth / off.width;
-        const sy = video.videoHeight / off.height;
+        // Reuse one offscreen canvas at a small size — no per-frame allocation, no data-URL encoding.
+        let off = offRef.current;
+        if (!off) {
+          off = document.createElement("canvas");
+          offRef.current = off;
+        }
+        const scale = Math.min(1, 320 / video.videoWidth);
+        const ow = Math.round(video.videoWidth * scale);
+        const oh = Math.round(video.videoHeight * scale);
+        if (off.width !== ow || off.height !== oh) {
+          off.width = ow;
+          off.height = oh;
+        }
+        const octx = off.getContext("2d", { willReadFrequently: true })!;
+        octx.drawImage(video, 0, 0, ow, oh);
+        const image = RawImage.fromCanvas(off);
+        const raw: Detection[] = await detector(image, { threshold: 0.4, percentage: false });
+        const sx = video.videoWidth / ow;
+        const sy = video.videoHeight / oh;
         const scaled = raw.map((d) => ({
           ...d,
           box: { xmin: d.box.xmin * sx, ymin: d.box.ymin * sy, xmax: d.box.xmax * sx, ymax: d.box.ymax * sy },
         }));
-        detsRef.current = scaled;
+        targetsRef.current = scaled;
         setDets(scaled);
         const now = performance.now();
-        setFps(1000 / (now - lastRef.current));
+        const inst = 1000 / Math.max(1, now - lastRef.current);
         lastRef.current = now;
+        setFps((prev) => (prev ? prev * 0.7 + inst * 0.3 : inst));
       } catch (e) {
         console.error(e);
       } finally {
         busyRef.current = false;
       }
-      await new Promise((r) => setTimeout(r, 0));
+      // Yield to the browser so the preview keeps painting at full frame rate.
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+
     }
   }, []);
 
@@ -313,6 +396,8 @@ function LivePage() {
                 setStatus("idle");
                 setDets([]);
                 detsRef.current = [];
+                targetsRef.current = [];
+
               }}
               className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.18em] px-5 py-3 rounded border border-[color:var(--rkr-border)] hover:border-[color:var(--rkr-fg)] transition-colors"
             >
