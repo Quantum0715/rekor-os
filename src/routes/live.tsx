@@ -164,36 +164,50 @@ function LivePage() {
     while (runningRef.current) {
       const video = videoRef.current;
       const detector = detectorRef.current;
-      if (!video || !detector || !video.videoWidth || busyRef.current) {
-        await new Promise((r) => setTimeout(r, 60));
+      const RawImage = rawImageRef.current;
+      if (!video || !detector || !RawImage || !video.videoWidth || busyRef.current) {
+        await new Promise((r) => setTimeout(r, 50));
         continue;
       }
       busyRef.current = true;
       try {
-        const off = document.createElement("canvas");
-        const scale = Math.min(1, 480 / video.videoWidth);
-        off.width = Math.round(video.videoWidth * scale);
-        off.height = Math.round(video.videoHeight * scale);
-        const octx = off.getContext("2d")!;
-        octx.drawImage(video, 0, 0, off.width, off.height);
-        const raw: Detection[] = await detector(off.toDataURL("image/jpeg", 0.7), { threshold: 0.35, percentage: false });
-        const sx = video.videoWidth / off.width;
-        const sy = video.videoHeight / off.height;
+        // Reuse one offscreen canvas at a small size — no per-frame allocation, no data-URL encoding.
+        let off = offRef.current;
+        if (!off) {
+          off = document.createElement("canvas");
+          offRef.current = off;
+        }
+        const scale = Math.min(1, 320 / video.videoWidth);
+        const ow = Math.round(video.videoWidth * scale);
+        const oh = Math.round(video.videoHeight * scale);
+        if (off.width !== ow || off.height !== oh) {
+          off.width = ow;
+          off.height = oh;
+        }
+        const octx = off.getContext("2d", { willReadFrequently: true })!;
+        octx.drawImage(video, 0, 0, ow, oh);
+        const image = RawImage.fromCanvas(off);
+        const raw: Detection[] = await detector(image, { threshold: 0.4, percentage: false });
+        const sx = video.videoWidth / ow;
+        const sy = video.videoHeight / oh;
         const scaled = raw.map((d) => ({
           ...d,
           box: { xmin: d.box.xmin * sx, ymin: d.box.ymin * sy, xmax: d.box.xmax * sx, ymax: d.box.ymax * sy },
         }));
-        detsRef.current = scaled;
+        targetsRef.current = scaled;
         setDets(scaled);
         const now = performance.now();
-        setFps(1000 / (now - lastRef.current));
+        const inst = 1000 / Math.max(1, now - lastRef.current);
         lastRef.current = now;
+        setFps((prev) => (prev ? prev * 0.7 + inst * 0.3 : inst));
       } catch (e) {
         console.error(e);
       } finally {
         busyRef.current = false;
       }
-      await new Promise((r) => setTimeout(r, 0));
+      // Yield to the browser so the preview keeps painting at full frame rate.
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+
     }
   }, []);
 
