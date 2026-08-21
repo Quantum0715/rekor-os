@@ -52,6 +52,8 @@ function LivePage() {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const detsRef = useRef<Detection[]>([]);
+  const targetsRef = useRef<Detection[]>([]);
+
   const busyRef = useRef(false);
   const rafRef = useRef<number | null>(null);
   const lastRef = useRef(performance.now());
