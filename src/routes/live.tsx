@@ -68,19 +68,40 @@ function LivePage() {
     setError(null);
     setStatus("loading");
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } }, audio: false });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 960 }, frameRate: { ideal: 30 } },
+        audio: false,
+      });
       streamRef.current = stream;
       const video = videoRef.current!;
       video.srcObject = stream;
       await video.play();
 
-      const { pipeline, env } = await import("@huggingface/transformers");
+      const { pipeline, env, RawImage } = await import("@huggingface/transformers");
       env.allowLocalModels = false;
-      detectorRef.current = await pipeline("object-detection", "Xenova/yolos-tiny", {
-        progress_callback: (p: any) => {
-          if (p.status === "progress" && typeof p.progress === "number") setModelProgress(Math.round(p.progress));
-        },
-      });
+      rawImageRef.current = RawImage;
+      try {
+        const threads = Math.min(4, Math.max(1, (navigator.hardwareConcurrency || 4) - 1));
+        (env.backends as any).onnx.wasm.numThreads = threads;
+      } catch {
+        /* ignore */
+      }
+
+      const supportsWebGPU = typeof navigator !== "undefined" && "gpu" in navigator;
+      const load = (opts: any) =>
+        pipeline("object-detection", "Xenova/yolos-tiny", {
+          ...opts,
+          progress_callback: (p: any) => {
+            if (p.status === "progress" && typeof p.progress === "number") setModelProgress(Math.round(p.progress));
+          },
+        });
+      try {
+        detectorRef.current = supportsWebGPU
+          ? await load({ device: "webgpu", dtype: "fp16" })
+          : await load({ dtype: "q8" });
+      } catch {
+        detectorRef.current = await load({ dtype: "q8" });
+      }
 
       setStatus("live");
       runningRef.current = true;
@@ -93,6 +114,7 @@ function LivePage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
   // Composite loop: camera frame + boxes onto the visible canvas (also the recording source).
   const renderLoop = useCallback(() => {
