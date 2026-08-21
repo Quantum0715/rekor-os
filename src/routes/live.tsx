@@ -123,10 +123,52 @@ function LivePage() {
 
   // Composite loop: camera frame + boxes onto the visible canvas (also the recording source).
   const renderLoop = useCallback(() => {
+    // Ease existing boxes toward the newest detections so motion looks smooth
+    // between inference passes instead of jumping.
+    const smooth = () => {
+      const targets = targetsRef.current;
+      const prev = detsRef.current;
+      const used = new Set<number>();
+      const next: Detection[] = targets.map((t) => {
+        let bestIdx = -1;
+        let bestDist = Infinity;
+        prev.forEach((p, i) => {
+          if (used.has(i) || p.label !== t.label) return;
+          const d =
+            Math.abs(p.box.xmin - t.box.xmin) +
+            Math.abs(p.box.ymin - t.box.ymin) +
+            Math.abs(p.box.xmax - t.box.xmax) +
+            Math.abs(p.box.ymax - t.box.ymax);
+          if (d < bestDist) {
+            bestDist = d;
+            bestIdx = i;
+          }
+        });
+        const span = Math.max(1, t.box.xmax - t.box.xmin) * 3;
+        if (bestIdx === -1 || bestDist > span) return t;
+        used.add(bestIdx);
+        const p = prev[bestIdx]!;
+        const k = 0.35;
+        const lerp = (a: number, b: number) => a + (b - a) * k;
+        return {
+          ...t,
+          box: {
+            xmin: lerp(p.box.xmin, t.box.xmin),
+            ymin: lerp(p.box.ymin, t.box.ymin),
+            xmax: lerp(p.box.xmax, t.box.xmax),
+            ymax: lerp(p.box.ymax, t.box.ymax),
+          },
+        };
+      });
+      detsRef.current = next;
+    };
+
     const draw = () => {
       if (!runningRef.current) return;
+      smooth();
       const video = videoRef.current;
       const canvas = canvasRef.current;
+
       if (video && canvas && video.videoWidth) {
         const w = video.videoWidth;
         const h = video.videoHeight;
