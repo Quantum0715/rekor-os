@@ -45,6 +45,9 @@ function LivePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const detectorRef = useRef<any>(null);
+  const rawImageRef = useRef<any>(null);
+  const offRef = useRef<HTMLCanvasElement | null>(null);
+
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
