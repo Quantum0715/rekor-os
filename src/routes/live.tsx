@@ -396,6 +396,8 @@ function LivePage() {
                 setStatus("idle");
                 setDets([]);
                 detsRef.current = [];
+                targetsRef.current = [];
+
               }}
               className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.18em] px-5 py-3 rounded border border-[color:var(--rkr-border)] hover:border-[color:var(--rkr-fg)] transition-colors"
             >
