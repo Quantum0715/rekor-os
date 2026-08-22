@@ -97,14 +97,28 @@ function TrackPage() {
         setProgress(0);
         const { pipeline, env } = await import("@huggingface/transformers");
         env.allowLocalModels = false;
-        const detector = await pipeline("object-detection", "Xenova/yolos-tiny", {
-          progress_callback: (p: any) => {
-            if (cancelled) return;
-            if (p.status === "progress" && typeof p.progress === "number") {
-              setProgress(Math.round(p.progress));
-            }
-          },
-        });
+        const loadDetector = (model: string, opts: any = {}) =>
+          pipeline("object-detection", model, {
+            ...opts,
+            progress_callback: (p: any) => {
+              if (cancelled) return;
+              if (p.status === "progress" && typeof p.progress === "number") {
+                setProgress(Math.round(p.progress));
+              }
+            },
+          });
+        // YOLOv10-n gives far fewer false positives than yolos-tiny.
+        let detector: any;
+        try {
+          detector = await loadDetector("onnx-community/yolov10n", { dtype: "fp32" });
+        } catch {
+          try {
+            detector = await loadDetector("onnx-community/yolov10n", { dtype: "q8" });
+          } catch {
+            detector = await loadDetector("Xenova/yolos-tiny", { dtype: "q8" });
+          }
+        }
+
         if (cancelled) return;
 
         // Stage 2: analyze frames — sample by seeking through hidden <video>.
