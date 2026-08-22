@@ -235,7 +235,7 @@ function LivePage() {
           off = document.createElement("canvas");
           offRef.current = off;
         }
-        const scale = Math.min(1, 448 / video.videoWidth);
+        const scale = Math.min(1, sizeRef.current / video.videoWidth);
         const ow = Math.round(video.videoWidth * scale);
         const oh = Math.round(video.videoHeight * scale);
         if (off.width !== ow || off.height !== oh) {
@@ -245,8 +245,13 @@ function LivePage() {
         const octx = off.getContext("2d", { willReadFrequently: true })!;
         octx.drawImage(video, 0, 0, ow, oh);
         const image = RawImage.fromCanvas(off);
+        const t0 = performance.now();
         // Higher threshold: weak, speculative guesses never reach the screen.
         const raw: Detection[] = await detector(image, { threshold: 0.5, percentage: false });
+        const cost = performance.now() - t0;
+        // Adaptive resolution keeps motion smooth on slow devices without losing accuracy on fast ones.
+        if (cost > 260 && sizeRef.current > 320) sizeRef.current -= 32;
+        else if (cost < 90 && sizeRef.current < 512) sizeRef.current += 32;
         const sx = video.videoWidth / ow;
         const sy = video.videoHeight / oh;
         const scaled = raw.map((d) => ({
@@ -261,6 +266,7 @@ function LivePage() {
         const inst = 1000 / Math.max(1, now - lastRef.current);
         lastRef.current = now;
         setFps((prev) => (prev ? prev * 0.7 + inst * 0.3 : inst));
+
       } catch (e) {
         console.error(e);
       } finally {
