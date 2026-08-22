@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Stabilizer } from "@/lib/detect-stabilizer";
+
 
 export const Route = createFileRoute("/live")({
   head: () => ({
@@ -53,6 +55,12 @@ function LivePage() {
   const chunksRef = useRef<Blob[]>([]);
   const detsRef = useRef<Detection[]>([]);
   const targetsRef = useRef<Detection[]>([]);
+  const sizeRef = useRef(448);
+  const stabRef = useRef(
+    new Stabilizer({ minScore: 0.55, minAreaRatio: 0.002, minHits: 3, maxMisses: 3 }),
+  );
+
+
 
   const busyRef = useRef(false);
   const rafRef = useRef<number | null>(null);
@@ -93,20 +101,28 @@ function LivePage() {
       }
 
       const supportsWebGPU = typeof navigator !== "undefined" && "gpu" in navigator;
-      const load = (opts: any) =>
-        pipeline("object-detection", "Xenova/yolos-tiny", {
+      const load = (model: string, opts: any) =>
+        pipeline("object-detection", model, {
           ...opts,
           progress_callback: (p: any) => {
             if (p.status === "progress" && typeof p.progress === "number") setModelProgress(Math.round(p.progress));
           },
         });
+      // YOLOv10-n: far fewer phantom detections than yolos-tiny and fast enough for live video.
       try {
         detectorRef.current = supportsWebGPU
-          ? await load({ device: "webgpu", dtype: "fp16" })
-          : await load({ dtype: "q8" });
+          ? await load("onnx-community/yolov10n", { device: "webgpu", dtype: "fp16" })
+          : await load("onnx-community/yolov10n", { dtype: "q8" });
       } catch {
-        detectorRef.current = await load({ dtype: "q8" });
+        try {
+          detectorRef.current = await load("onnx-community/yolov10n", { dtype: "q8" });
+        } catch {
+          detectorRef.current = await load("Xenova/yolos-tiny", { dtype: "q8" });
+        }
       }
+
+      stabRef.current.reset();
+
 
       setStatus("live");
       runningRef.current = true;
@@ -221,7 +237,7 @@ function LivePage() {
           off = document.createElement("canvas");
           offRef.current = off;
         }
-        const scale = Math.min(1, 320 / video.videoWidth);
+        const scale = Math.min(1, sizeRef.current / video.videoWidth);
         const ow = Math.round(video.videoWidth * scale);
         const oh = Math.round(video.videoHeight * scale);
         if (off.width !== ow || off.height !== oh) {
@@ -231,19 +247,28 @@ function LivePage() {
         const octx = off.getContext("2d", { willReadFrequently: true })!;
         octx.drawImage(video, 0, 0, ow, oh);
         const image = RawImage.fromCanvas(off);
-        const raw: Detection[] = await detector(image, { threshold: 0.4, percentage: false });
+        const t0 = performance.now();
+        // Higher threshold: weak, speculative guesses never reach the screen.
+        const raw: Detection[] = await detector(image, { threshold: 0.5, percentage: false });
+        const cost = performance.now() - t0;
+        // Adaptive resolution keeps motion smooth on slow devices without losing accuracy on fast ones.
+        if (cost > 260 && sizeRef.current > 320) sizeRef.current -= 32;
+        else if (cost < 90 && sizeRef.current < 512) sizeRef.current += 32;
         const sx = video.videoWidth / ow;
         const sy = video.videoHeight / oh;
         const scaled = raw.map((d) => ({
           ...d,
           box: { xmin: d.box.xmin * sx, ymin: d.box.ymin * sy, xmax: d.box.xmax * sx, ymax: d.box.ymax * sy },
         }));
-        targetsRef.current = scaled;
-        setDets(scaled);
+        const stable = stabRef.current.update(scaled, video.videoWidth, video.videoHeight);
+        targetsRef.current = stable;
+        setDets(stable);
+
         const now = performance.now();
         const inst = 1000 / Math.max(1, now - lastRef.current);
         lastRef.current = now;
         setFps((prev) => (prev ? prev * 0.7 + inst * 0.3 : inst));
+
       } catch (e) {
         console.error(e);
       } finally {
@@ -397,6 +422,8 @@ function LivePage() {
                 setDets([]);
                 detsRef.current = [];
                 targetsRef.current = [];
+                stabRef.current.reset();
+
 
               }}
               className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.18em] px-5 py-3 rounded border border-[color:var(--rkr-border)] hover:border-[color:var(--rkr-fg)] transition-colors"
