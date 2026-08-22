@@ -55,9 +55,11 @@ function LivePage() {
   const chunksRef = useRef<Blob[]>([]);
   const detsRef = useRef<Detection[]>([]);
   const targetsRef = useRef<Detection[]>([]);
+  const sizeRef = useRef(448);
   const stabRef = useRef(
     new Stabilizer({ minScore: 0.55, minAreaRatio: 0.002, minHits: 3, maxMisses: 3 }),
   );
+
 
 
   const busyRef = useRef(false);
