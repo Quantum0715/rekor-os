@@ -109,8 +109,8 @@ function LivePage() {
       // YOLOv10-n: far fewer phantom detections than yolos-tiny and fast enough for live video.
       try {
         detectorRef.current = supportsWebGPU
-          ? await load("onnx-community/yolov10n", { device: "webgpu", dtype: "fp32" })
-          : await load("onnx-community/yolov10n", { dtype: "fp32" });
+          ? await load("onnx-community/yolov10n", { device: "webgpu", dtype: "fp16" })
+          : await load("onnx-community/yolov10n", { dtype: "q8" });
       } catch {
         try {
           detectorRef.current = await load("onnx-community/yolov10n", { dtype: "q8" });
@@ -118,6 +118,7 @@ function LivePage() {
           detectorRef.current = await load("Xenova/yolos-tiny", { dtype: "q8" });
         }
       }
+
       stabRef.current.reset();
 
 
