@@ -104,7 +104,9 @@ export class Stabilizer {
 
     this.tracks = [...existing, ...fresh].filter((t) => t.misses <= maxMisses);
 
-    return this.tracks.filter((t) => t.shown && t.misses === 0).map((t) => t.det);
+    // Keep a confirmed object for two missed inference passes. Rendering continues
+    // between passes, so this prevents boxes flashing on/off as the camera moves.
+    return this.tracks.filter((t) => t.shown && t.misses <= Math.min(2, maxMisses)).map((t) => t.det);
   }
 
 }

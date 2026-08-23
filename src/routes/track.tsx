@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { trackerStore } from "@/lib/tracker-store";
+import { Stabilizer } from "@/lib/detect-stabilizer";
 
 export const Route = createFileRoute("/track")({
   head: () => ({
@@ -95,7 +96,7 @@ function TrackPage() {
         // Stage 1: load model
         setStage("load");
         setProgress(0);
-        const { pipeline, env } = await import("@huggingface/transformers");
+        const { pipeline, env, RawImage } = await import("@huggingface/transformers");
         env.allowLocalModels = false;
         const loadDetector = (model: string, opts: any = {}) =>
           pipeline("object-detection", model, {
@@ -110,13 +111,9 @@ function TrackPage() {
         // YOLOv10-n gives far fewer false positives than yolos-tiny.
         let detector: any;
         try {
-          detector = await loadDetector("onnx-community/yolov10n", { dtype: "fp32" });
+          detector = await loadDetector("onnx-community/yolov10n", { dtype: "q8" });
         } catch {
-          try {
-            detector = await loadDetector("onnx-community/yolov10n", { dtype: "q8" });
-          } catch {
-            detector = await loadDetector("Xenova/yolos-tiny", { dtype: "q8" });
-          }
+          detector = await loadDetector("Xenova/yolos-tiny", { dtype: "q8" });
         }
 
         if (cancelled) return;
@@ -149,6 +146,7 @@ function TrackPage() {
         const octx = off.getContext("2d")!;
 
         const frames: FrameResult[] = [];
+        const stabilizer = new Stabilizer({ minScore: 0.55, minAreaRatio: 0.0015, minHits: 2, maxMisses: 2 });
         for (let i = 0; i < times.length; i++) {
           if (cancelled) return;
           const t = times[i];
@@ -165,8 +163,8 @@ function TrackPage() {
             }
           });
           octx.drawImage(vid, 0, 0, off.width, off.height);
-          const url = off.toDataURL("image/jpeg", 0.7);
-          const raw: Detection[] = await detector(url, { threshold: 0.35, percentage: false });
+          const image = RawImage.fromCanvas(off);
+          const raw: Detection[] = await detector(image, { threshold: 0.5, percentage: false });
           const sx = (vid.videoWidth || off.width) / off.width;
           const sy = (vid.videoHeight || off.height) / off.height;
           const scaled = raw.map((d) => ({
@@ -178,7 +176,8 @@ function TrackPage() {
               ymax: d.box.ymax * sy,
             },
           }));
-          frames.push({ t, dets: scaled });
+          const stable = stabilizer.update(scaled, vid.videoWidth || off.width, vid.videoHeight || off.height);
+          frames.push({ t, dets: stable });
           setProgress(Math.round(((i + 1) / times.length) * 100));
         }
         if (cancelled) return;

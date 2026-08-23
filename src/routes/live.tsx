@@ -55,7 +55,7 @@ function LivePage() {
   const chunksRef = useRef<Blob[]>([]);
   const detsRef = useRef<Detection[]>([]);
   const targetsRef = useRef<Detection[]>([]);
-  const sizeRef = useRef(448);
+  const sizeRef = useRef(352);
   const stabRef = useRef(
     new Stabilizer({ minScore: 0.55, minAreaRatio: 0.002, minHits: 3, maxMisses: 3 }),
   );
@@ -252,8 +252,8 @@ function LivePage() {
         const raw: Detection[] = await detector(image, { threshold: 0.5, percentage: false });
         const cost = performance.now() - t0;
         // Adaptive resolution keeps motion smooth on slow devices without losing accuracy on fast ones.
-        if (cost > 260 && sizeRef.current > 320) sizeRef.current -= 32;
-        else if (cost < 90 && sizeRef.current < 512) sizeRef.current += 32;
+        if (cost > 220 && sizeRef.current > 288) sizeRef.current -= 32;
+        else if (cost < 75 && sizeRef.current < 416) sizeRef.current += 32;
         const sx = video.videoWidth / ow;
         const sy = video.videoHeight / oh;
         const scaled = raw.map((d) => ({

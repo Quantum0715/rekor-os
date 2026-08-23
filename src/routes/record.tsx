@@ -42,10 +42,22 @@ function RecordPage() {
   const openCamera = useCallback(async () => {
     setError(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 1280 } },
-        audio: true,
-      });
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Camera access is not supported in this browser. Please use a current Chrome, Edge, or Safari version.");
+      }
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } },
+          audio: true,
+        });
+      } catch {
+        // A missing/blocked microphone should not prevent the recording screen opening.
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } },
+          audio: false,
+        });
+      }
       streamRef.current = stream;
       const v = videoRef.current;
       if (v) {
