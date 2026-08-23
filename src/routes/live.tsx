@@ -274,8 +274,10 @@ function LivePage() {
       } finally {
         busyRef.current = false;
       }
-      // Yield to the browser so the preview keeps painting at full frame rate.
-      await new Promise((r) => requestAnimationFrame(() => r(null)));
+      // Leave a real paint window between inference passes. Detection does not
+      // need to run at camera FPS: the render loop keeps the feed and smoothed
+      // boxes moving at display FPS while inference runs a few times per second.
+      await new Promise((r) => setTimeout(r, 160));
 
     }
   }, []);
