@@ -386,10 +386,19 @@ function LivePage() {
           {status === "live" && (
             <>
               <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2 pointer-events-none font-[family-name:var(--font-mono)] text-[10px]">
-                <div className="flex gap-2 items-center bg-black/60 border border-white/10 rounded px-2 py-1 backdrop-blur">
-                  <span className={`text-[color:var(--rkr-primary)] ${recording ? "animate-pulse" : ""}`}>●</span>
-                  <span>{recording ? "RECORDING" : "LIVE"}</span>
+                <div className="flex flex-col gap-2 items-start">
+                  <div className="flex gap-2 items-center bg-black/60 border border-white/10 rounded px-2 py-1 backdrop-blur">
+                    <span className={`text-[color:var(--rkr-primary)] ${recording ? "animate-pulse" : ""}`}>●</span>
+                    <span>{recording ? "RECORDING" : "LIVE"}</span>
+                  </div>
+                  {modelStatus !== "ready" && (
+                    <div className="flex gap-2 items-center bg-black/60 border border-white/10 rounded px-2 py-1 backdrop-blur text-[color:var(--rkr-muted)]">
+                      <span className="size-2.5 rounded-full border border-[color:var(--rkr-primary)] border-t-transparent animate-spin" />
+                      <span>{modelStatus === "error" ? "MODEL FAILED" : `LOADING MODEL ${modelProgress}%`}</span>
+                    </div>
+                  )}
                 </div>
+
                 <div className="flex gap-3 border border-white/10 bg-black/60 rounded px-3 py-1.5 backdrop-blur">
                   <div className="text-center">
                     <div className="text-[9px] text-[color:var(--rkr-muted)] leading-none">FPS</div>
