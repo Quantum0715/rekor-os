@@ -404,7 +404,7 @@ function LivePage() {
 
                 <div className="flex gap-3 border border-white/10 bg-black/60 rounded px-3 py-1.5 backdrop-blur">
                   <div className="text-center">
-                    <div className="text-[9px] text-[color:var(--rkr-muted)] leading-none">FPS</div>
+                    <div className="text-[9px] text-[color:var(--rkr-muted)] leading-none">DET/S</div>
                     <div className="text-xs">{fps ? fps.toFixed(1) : "—"}</div>
                   </div>
                   <div className="w-px bg-white/10" />
