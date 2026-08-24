@@ -115,10 +115,14 @@ function LivePage() {
       if (message.type === "progress") {
         setModelProgress(message.progress);
       } else if (message.type === "ready") {
+        modelReadyRef.current = true;
+        setModelProgress(100);
         setModelStatus("ready");
       } else if (message.type === "error") {
+        modelReadyRef.current = false;
         setModelStatus("error");
         setError(`Detection model: ${message.message}`);
+
       } else if (message.type === "frame-error") {
         busyRef.current = false;
       } else if (message.type === "result") {
