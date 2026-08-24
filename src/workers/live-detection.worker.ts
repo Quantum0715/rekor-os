@@ -12,6 +12,14 @@ let detector: any = null;
 let loading: Promise<void> | null = null;
 let canvas: OffscreenCanvas | null = null;
 
+// RT-DETR is both supported by transformers.js and far more reliable than
+// yolos-tiny, which invented objects that were not in frame.
+const CANDIDATES: { model: string; dtype: string }[] = [
+  { model: "onnx-community/rtdetr_v2_r18vd", dtype: "q8" },
+  { model: "onnx-community/rtdetr_r18vd", dtype: "q8" },
+  { model: "Xenova/yolos-tiny", dtype: "q8" },
+];
+
 async function loadModel() {
   if (detector) return;
   if (loading) return loading;
@@ -24,23 +32,32 @@ async function loadModel() {
       // Single-threaded WASM is intentional: inference runs off the UI thread.
     }
 
-    detector = await pipeline("object-detection", "onnx-community/yolov10n", {
-      dtype: "q8",
-      progress_callback: (progress: any) => {
-        if (progress.status === "progress" && typeof progress.progress === "number") {
-          self.postMessage({ type: "progress", progress: Math.round(progress.progress) });
-        }
-      },
-    });
-    self.postMessage({ type: "ready" });
+    let lastError: unknown = null;
+    for (const candidate of CANDIDATES) {
+      try {
+        detector = await pipeline("object-detection", candidate.model, {
+          dtype: candidate.dtype as any,
+          progress_callback: (progress: any) => {
+            if (progress.status === "progress" && typeof progress.progress === "number") {
+              self.postMessage({ type: "progress", progress: Math.round(progress.progress) });
+            }
+          },
+        });
+        self.postMessage({ type: "ready", model: candidate.model });
+        return;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError ?? new Error("No detection model could be loaded");
   })().catch((error) => {
-    console.error("[live-worker] model load failed", error);
     loading = null;
     self.postMessage({ type: "error", message: error instanceof Error ? error.message : "Model could not load" });
   });
 
   return loading;
 }
+
 
 self.onmessage = async (event: MessageEvent<{ type: "load" } | FrameMessage>) => {
   if (event.data.type === "load") {
