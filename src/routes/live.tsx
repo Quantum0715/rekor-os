@@ -119,10 +119,11 @@ function LivePage() {
         setModelProgress(100);
         setModelStatus("ready");
       } else if (message.type === "error") {
-        console.error("live detection model failed:", message.message);
+        (window as any).__liveModelError = message.message;
         modelReadyRef.current = false;
         setModelStatus("error");
         setError(`Detection model: ${message.message}`);
+
 
 
       } else if (message.type === "frame-error") {
