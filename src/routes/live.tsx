@@ -64,9 +64,11 @@ function LivePage() {
 
 
   const busyRef = useRef(false);
+  const modelReadyRef = useRef(false);
   const rafRef = useRef<number | null>(null);
   const lastRef = useRef(performance.now());
   const runningRef = useRef(false);
+
 
   const drawBoxes = useCallback((ctx: CanvasRenderingContext2D, width: number) => {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -113,10 +115,17 @@ function LivePage() {
       if (message.type === "progress") {
         setModelProgress(message.progress);
       } else if (message.type === "ready") {
+        modelReadyRef.current = true;
+        setModelProgress(100);
         setModelStatus("ready");
       } else if (message.type === "error") {
+        modelReadyRef.current = false;
         setModelStatus("error");
         setError(`Detection model: ${message.message}`);
+
+
+
+
       } else if (message.type === "frame-error") {
         busyRef.current = false;
       } else if (message.type === "result") {
@@ -245,7 +254,7 @@ function LivePage() {
     while (runningRef.current) {
       const video = videoRef.current;
       const worker = workerRef.current;
-      if (!video || !worker || modelStatus !== "ready" || !video.videoWidth || busyRef.current) {
+      if (!video || !worker || !modelReadyRef.current || !video.videoWidth || busyRef.current) {
         await new Promise((resolve) => setTimeout(resolve, 80));
         continue;
       }
@@ -262,7 +271,8 @@ function LivePage() {
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
-  }, [modelStatus]);
+  }, []);
+
 
   const capture = async () => {
     const video = videoRef.current;
@@ -345,8 +355,15 @@ function LivePage() {
           ref={wrapRef}
           className="relative mt-8 aspect-video bg-black rounded-lg border border-[color:var(--rkr-border)] overflow-hidden"
         >
-          <video ref={videoRef} muted playsInline className="hidden" />
-          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-contain" />
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            autoPlay
+            className="absolute inset-0 w-full h-full object-contain"
+          />
+          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-contain pointer-events-none" />
+
 
           {status !== "live" && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center px-6">
@@ -372,13 +389,22 @@ function LivePage() {
           {status === "live" && (
             <>
               <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2 pointer-events-none font-[family-name:var(--font-mono)] text-[10px]">
-                <div className="flex gap-2 items-center bg-black/60 border border-white/10 rounded px-2 py-1 backdrop-blur">
-                  <span className={`text-[color:var(--rkr-primary)] ${recording ? "animate-pulse" : ""}`}>●</span>
-                  <span>{recording ? "RECORDING" : "LIVE"}</span>
+                <div className="flex flex-col gap-2 items-start">
+                  <div className="flex gap-2 items-center bg-black/60 border border-white/10 rounded px-2 py-1 backdrop-blur">
+                    <span className={`text-[color:var(--rkr-primary)] ${recording ? "animate-pulse" : ""}`}>●</span>
+                    <span>{recording ? "RECORDING" : "LIVE"}</span>
+                  </div>
+                  {modelStatus !== "ready" && (
+                    <div className="flex gap-2 items-center bg-black/60 border border-white/10 rounded px-2 py-1 backdrop-blur text-[color:var(--rkr-muted)]">
+                      <span className="size-2.5 rounded-full border border-[color:var(--rkr-primary)] border-t-transparent animate-spin" />
+                      <span>{modelStatus === "error" ? "MODEL FAILED" : `LOADING MODEL ${modelProgress}%`}</span>
+                    </div>
+                  )}
                 </div>
+
                 <div className="flex gap-3 border border-white/10 bg-black/60 rounded px-3 py-1.5 backdrop-blur">
                   <div className="text-center">
-                    <div className="text-[9px] text-[color:var(--rkr-muted)] leading-none">FPS</div>
+                    <div className="text-[9px] text-[color:var(--rkr-muted)] leading-none">DET/S</div>
                     <div className="text-xs">{fps ? fps.toFixed(1) : "—"}</div>
                   </div>
                   <div className="w-px bg-white/10" />
