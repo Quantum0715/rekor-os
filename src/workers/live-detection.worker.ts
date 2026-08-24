@@ -34,6 +34,7 @@ async function loadModel() {
     });
     self.postMessage({ type: "ready" });
   })().catch((error) => {
+    console.error("[live-worker] model load failed", error);
     loading = null;
     self.postMessage({ type: "error", message: error instanceof Error ? error.message : "Model could not load" });
   });
