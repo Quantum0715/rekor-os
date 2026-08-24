@@ -64,9 +64,11 @@ function LivePage() {
 
 
   const busyRef = useRef(false);
+  const modelReadyRef = useRef(false);
   const rafRef = useRef<number | null>(null);
   const lastRef = useRef(performance.now());
   const runningRef = useRef(false);
+
 
   const drawBoxes = useCallback((ctx: CanvasRenderingContext2D, width: number) => {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -245,7 +247,7 @@ function LivePage() {
     while (runningRef.current) {
       const video = videoRef.current;
       const worker = workerRef.current;
-      if (!video || !worker || modelStatus !== "ready" || !video.videoWidth || busyRef.current) {
+      if (!video || !worker || !modelReadyRef.current || !video.videoWidth || busyRef.current) {
         await new Promise((resolve) => setTimeout(resolve, 80));
         continue;
       }
@@ -262,7 +264,8 @@ function LivePage() {
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
-  }, [modelStatus]);
+  }, []);
+
 
   const capture = async () => {
     const video = videoRef.current;
@@ -345,8 +348,15 @@ function LivePage() {
           ref={wrapRef}
           className="relative mt-8 aspect-video bg-black rounded-lg border border-[color:var(--rkr-border)] overflow-hidden"
         >
-          <video ref={videoRef} muted playsInline className="hidden" />
-          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-contain" />
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            autoPlay
+            className="absolute inset-0 w-full h-full object-contain"
+          />
+          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-contain pointer-events-none" />
+
 
           {status !== "live" && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center px-6">
