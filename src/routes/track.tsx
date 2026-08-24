@@ -108,13 +108,19 @@ function TrackPage() {
               }
             },
           });
-        // YOLOv10-n gives far fewer false positives than yolos-tiny.
+        // RT-DETR is supported by transformers.js and much less prone to
+        // inventing objects than yolos-tiny, which is kept only as a fallback.
         let detector: any;
         try {
-          detector = await loadDetector("onnx-community/yolov10n", { dtype: "q8" });
+          detector = await loadDetector("onnx-community/rtdetr_v2_r18vd", { dtype: "q8" });
         } catch {
-          detector = await loadDetector("Xenova/yolos-tiny", { dtype: "q8" });
+          try {
+            detector = await loadDetector("onnx-community/rtdetr_r18vd", { dtype: "q8" });
+          } catch {
+            detector = await loadDetector("Xenova/yolos-tiny", { dtype: "q8" });
+          }
         }
+
 
         if (cancelled) return;
 
