@@ -2,13 +2,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { trackerStore } from "@/lib/tracker-store";
 
-type Mode = "choose" | "upload" | "live-choose";
+type Mode = "choose" | "upload" | "live-choose" | "record";
 
 export function VideoUpload() {
   const [mode, setMode] = useState<Mode>("choose");
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [recError, setRecError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const camVideoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
   const navigate = useNavigate();
 
   // Launch / Start Tracking buttons anywhere on the page reopen this card's chooser.
@@ -26,6 +32,15 @@ export function VideoUpload() {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
+
+  const stopCamera = useCallback(() => {
+    if (recorderRef.current && recorderRef.current.state !== "inactive") recorderRef.current.stop();
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    setRecording(false);
+  }, []);
+
+  useEffect(() => () => stopCamera(), [stopCamera]);
 
   const handleFile = useCallback(
     (f: File) => {
@@ -55,6 +70,48 @@ export function VideoUpload() {
     setPreviewUrl(null);
     if (inputRef.current) inputRef.current.value = "";
     setMode("choose");
+  };
+
+  const openRecorder = async () => {
+    setRecError(null);
+    setMode("record");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 1280 } },
+        audio: true,
+      });
+      streamRef.current = stream;
+      const v = camVideoRef.current;
+      if (v) {
+        v.srcObject = stream;
+        await v.play();
+      }
+    } catch (e: any) {
+      setRecError(e?.message ?? "Could not access camera");
+    }
+  };
+
+  const startRecording = () => {
+    const stream = streamRef.current;
+    if (!stream) return;
+    chunksRef.current = [];
+    const rec = new MediaRecorder(stream, {
+      mimeType: MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9" : "video/webm",
+    });
+    rec.ondataavailable = (e) => e.data.size && chunksRef.current.push(e.data);
+    rec.onstop = () => {
+      const blob = new Blob(chunksRef.current, { type: "video/webm" });
+      const f = new File([blob], `live-recording-${Date.now()}.webm`, { type: "video/webm" });
+      stopCamera();
+      handleFile(f);
+    };
+    recorderRef.current = rec;
+    rec.start();
+    setRecording(true);
+  };
+
+  const stopRecording = () => {
+    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
   };
 
   const tile =
@@ -118,7 +175,7 @@ export function VideoUpload() {
                   Detect live, capture stills or record the tracked feed
                 </div>
               </button>
-              <button type="button" onClick={() => navigate({ to: "/record" })} className={tile}>
+              <button type="button" onClick={openRecorder} className={tile}>
                 <span className="text-2xl text-[color:var(--rkr-primary)]">●</span>
                 <div className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-widest font-bold text-[color:var(--rkr-fg)]">
                   Record live video &amp; upload
@@ -136,6 +193,21 @@ export function VideoUpload() {
               ← Back
             </button>
           </div>
+        )}
+
+        {mode === "record" && (
+          <>
+            <video ref={camVideoRef} muted playsInline className="absolute inset-0 w-full h-full object-contain bg-black" />
+            <div className="absolute top-3 left-3 font-[family-name:var(--font-mono)] text-[10px] flex gap-2 items-center bg-black/60 border border-white/10 rounded px-2 py-1 backdrop-blur text-[color:var(--rkr-fg)]">
+              <span className={`text-[color:var(--rkr-primary)] ${recording ? "animate-pulse" : ""}`}>●</span>
+              <span>{recording ? "RECORDING" : "CAMERA READY"}</span>
+            </div>
+            {recError && (
+              <div className="absolute inset-0 grid place-items-center px-6 text-center text-[12px] text-red-400 font-[family-name:var(--font-mono)]">
+                {recError}
+              </div>
+            )}
+          </>
         )}
 
         {mode === "upload" && file && previewUrl && (
@@ -170,6 +242,35 @@ export function VideoUpload() {
           }}
         />
       </div>
+
+      {mode === "record" && !recError && (
+        <div className="mt-4 flex flex-wrap justify-center gap-3">
+          {!recording ? (
+            <button
+              onClick={startRecording}
+              className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.18em] font-bold bg-[color:var(--rkr-primary)] text-black px-5 py-3 rounded hover:bg-[color:var(--rkr-fg)] transition-colors"
+            >
+              ● Start recording
+            </button>
+          ) : (
+            <button
+              onClick={stopRecording}
+              className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.18em] px-5 py-3 rounded border border-red-500/60 text-red-400 hover:border-red-400 transition-colors"
+            >
+              ■ Stop &amp; use clip
+            </button>
+          )}
+          <button
+            onClick={() => {
+              stopCamera();
+              setMode("live-choose");
+            }}
+            className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.18em] px-5 py-3 rounded border border-[color:var(--rkr-border)] hover:border-[color:var(--rkr-fg)] transition-colors"
+          >
+            ✕ Cancel
+          </button>
+        </div>
+      )}
 
       {mode === "upload" && file && (
         <div className="mt-4 flex flex-wrap gap-3">

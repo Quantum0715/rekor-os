@@ -1,7 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Stabilizer } from "@/lib/detect-stabilizer";
-
 
 export const Route = createFileRoute("/live")({
   head: () => ({
@@ -36,7 +34,6 @@ const colorFor = (l: string) => LABEL_COLORS[l] ?? "#FF5C00";
 
 function LivePage() {
   const [status, setStatus] = useState<"idle" | "loading" | "live" | "error">("idle");
-  const [modelStatus, setModelStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [modelProgress, setModelProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [dets, setDets] = useState<Detection[]>([]);
@@ -47,192 +44,62 @@ function LivePage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const workerRef = useRef<Worker | null>(null);
-  const recordCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const recordRafRef = useRef<number | null>(null);
-
+  const detectorRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const detsRef = useRef<Detection[]>([]);
-  const targetsRef = useRef<Detection[]>([]);
-  const sizeRef = useRef(320);
-  const stabRef = useRef(
-    new Stabilizer({ minScore: 0.55, minAreaRatio: 0.002, minHits: 3, maxMisses: 3 }),
-  );
-
-
-
   const busyRef = useRef(false);
-  const modelReadyRef = useRef(false);
   const rafRef = useRef<number | null>(null);
   const lastRef = useRef(performance.now());
   const runningRef = useRef(false);
 
-
-  const drawBoxes = useCallback((ctx: CanvasRenderingContext2D, width: number) => {
-    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    ctx.font = `${Math.max(12, Math.round(width / 60))}px ui-monospace, monospace`;
-    ctx.textBaseline = "top";
-    for (const d of detsRef.current) {
-      const color = colorFor(d.label);
-      const x = d.box.xmin;
-      const y = d.box.ymin;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = Math.max(2, Math.round(width / 480));
-      ctx.strokeRect(x, y, d.box.xmax - x, d.box.ymax - y);
-      const text = `${d.label.toUpperCase()} · ${(d.score * 100).toFixed(1)}%`;
-      const pad = 4;
-      const textWidth = ctx.measureText(text).width + pad * 2;
-      const textHeight = parseInt(ctx.font, 10) + pad * 2;
-      ctx.fillStyle = color;
-      ctx.fillRect(x, Math.max(0, y - textHeight), textWidth, textHeight);
-      ctx.fillStyle = "#0B0B0C";
-      ctx.fillText(text, x + pad, Math.max(0, y - textHeight) + pad);
-    }
-  }, []);
-
   const stopAll = useCallback(() => {
     runningRef.current = false;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    if (recordRafRef.current) cancelAnimationFrame(recordRafRef.current);
     if (recorderRef.current && recorderRef.current.state !== "inactive") recorderRef.current.stop();
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
   }, []);
 
-  useEffect(() => () => {
-    stopAll();
-    workerRef.current?.terminate();
-    workerRef.current = null;
-  }, [stopAll]);
-
-  const ensureWorker = useCallback(() => {
-    if (workerRef.current) return workerRef.current;
-    const worker = new Worker(new URL("../workers/live-detection.worker.ts", import.meta.url), { type: "module" });
-    worker.onmessage = (event) => {
-      const message = event.data;
-      if (message.type === "progress") {
-        setModelProgress(message.progress);
-      } else if (message.type === "ready") {
-        modelReadyRef.current = true;
-        setModelProgress(100);
-        setModelStatus("ready");
-      } else if (message.type === "error") {
-        modelReadyRef.current = false;
-        setModelStatus("error");
-        setError(`Detection model: ${message.message}`);
-
-
-
-
-      } else if (message.type === "frame-error") {
-        busyRef.current = false;
-      } else if (message.type === "result") {
-        const sx = message.sourceWidth / message.inputWidth;
-        const sy = message.sourceHeight / message.inputHeight;
-        const scaled: Detection[] = message.detections.map((d: Detection) => ({
-          ...d,
-          box: {
-            xmin: d.box.xmin * sx,
-            ymin: d.box.ymin * sy,
-            xmax: d.box.xmax * sx,
-            ymax: d.box.ymax * sy,
-          },
-        }));
-        const stable = stabRef.current.update(scaled, message.sourceWidth, message.sourceHeight);
-        targetsRef.current = stable;
-        setDets(stable);
-        const now = performance.now();
-        const instantFps = 1000 / Math.max(1, now - lastRef.current);
-        lastRef.current = now;
-        setFps((previous) => (previous ? previous * 0.7 + instantFps * 0.3 : instantFps));
-        if (message.duration > 450) sizeRef.current = 256;
-        else if (message.duration < 180) sizeRef.current = 320;
-        busyRef.current = false;
-      }
-    };
-    workerRef.current = worker;
-    setModelStatus("loading");
-    worker.postMessage({ type: "load" });
-    return worker;
-  }, []);
+  useEffect(() => () => stopAll(), [stopAll]);
 
   const start = useCallback(async () => {
     setError(null);
     setStatus("loading");
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 960 }, frameRate: { ideal: 30 } },
-        audio: false,
-      });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } }, audio: false });
       streamRef.current = stream;
       const video = videoRef.current!;
       video.srcObject = stream;
       await video.play();
-      stabRef.current.reset();
+
+      const { pipeline, env } = await import("@huggingface/transformers");
+      env.allowLocalModels = false;
+      detectorRef.current = await pipeline("object-detection", "Xenova/yolos-tiny", {
+        progress_callback: (p: any) => {
+          if (p.status === "progress" && typeof p.progress === "number") setModelProgress(Math.round(p.progress));
+        },
+      });
+
       setStatus("live");
       runningRef.current = true;
       renderLoop();
       inferLoop();
-      ensureWorker();
     } catch (e: any) {
       console.error(e);
       setError(e?.message ?? "Could not start camera");
       setStatus("error");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ensureWorker]);
-
+  }, []);
 
   // Composite loop: camera frame + boxes onto the visible canvas (also the recording source).
   const renderLoop = useCallback(() => {
-    // Ease existing boxes toward the newest detections so motion looks smooth
-    // between inference passes instead of jumping.
-    const smooth = () => {
-      const targets = targetsRef.current;
-      const prev = detsRef.current;
-      const used = new Set<number>();
-      const next: Detection[] = targets.map((t) => {
-        let bestIdx = -1;
-        let bestDist = Infinity;
-        prev.forEach((p, i) => {
-          if (used.has(i) || p.label !== t.label) return;
-          const d =
-            Math.abs(p.box.xmin - t.box.xmin) +
-            Math.abs(p.box.ymin - t.box.ymin) +
-            Math.abs(p.box.xmax - t.box.xmax) +
-            Math.abs(p.box.ymax - t.box.ymax);
-          if (d < bestDist) {
-            bestDist = d;
-            bestIdx = i;
-          }
-        });
-        const span = Math.max(1, t.box.xmax - t.box.xmin) * 3;
-        if (bestIdx === -1 || bestDist > span) return t;
-        used.add(bestIdx);
-        const p = prev[bestIdx]!;
-        const k = 0.35;
-        const lerp = (a: number, b: number) => a + (b - a) * k;
-        return {
-          ...t,
-          box: {
-            xmin: lerp(p.box.xmin, t.box.xmin),
-            ymin: lerp(p.box.ymin, t.box.ymin),
-            xmax: lerp(p.box.xmax, t.box.xmax),
-            ymax: lerp(p.box.ymax, t.box.ymax),
-          },
-        };
-      });
-      detsRef.current = next;
-    };
-
     const draw = () => {
       if (!runningRef.current) return;
-      smooth();
       const video = videoRef.current;
       const canvas = canvasRef.current;
-
       if (video && canvas && video.videoWidth) {
         const w = video.videoWidth;
         const h = video.videoHeight;
@@ -242,78 +109,85 @@ function LivePage() {
         }
         const ctx = canvas.getContext("2d");
         if (ctx) {
-          drawBoxes(ctx, w);
+          ctx.drawImage(video, 0, 0, w, h);
+          ctx.font = `${Math.max(12, Math.round(w / 60))}px ui-monospace, monospace`;
+          ctx.textBaseline = "top";
+          for (const d of detsRef.current) {
+            const color = colorFor(d.label);
+            const x = d.box.xmin;
+            const y = d.box.ymin;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = Math.max(2, Math.round(w / 480));
+            ctx.strokeRect(x, y, d.box.xmax - x, d.box.ymax - y);
+            const text = `${d.label.toUpperCase()} · ${(d.score * 100).toFixed(1)}%`;
+            const pad = 4;
+            const tw = ctx.measureText(text).width + pad * 2;
+            const th = parseInt(ctx.font, 10) + pad * 2;
+            ctx.fillStyle = color;
+            ctx.fillRect(x, Math.max(0, y - th), tw, th);
+            ctx.fillStyle = "#0B0B0C";
+            ctx.fillText(text, x + pad, Math.max(0, y - th) + pad);
+          }
         }
       }
       rafRef.current = requestAnimationFrame(draw);
     };
     draw();
-  }, [drawBoxes]);
+  }, []);
 
   const inferLoop = useCallback(async () => {
     while (runningRef.current) {
       const video = videoRef.current;
-      const worker = workerRef.current;
-      if (!video || !worker || !modelReadyRef.current || !video.videoWidth || busyRef.current) {
-        await new Promise((resolve) => setTimeout(resolve, 80));
+      const detector = detectorRef.current;
+      if (!video || !detector || !video.videoWidth || busyRef.current) {
+        await new Promise((r) => setTimeout(r, 60));
         continue;
       }
       busyRef.current = true;
       try {
-        const bitmap = await createImageBitmap(video);
-        worker.postMessage(
-          { type: "frame", bitmap, width: video.videoWidth, height: video.videoHeight, inputSize: sizeRef.current },
-          [bitmap],
-        );
+        const off = document.createElement("canvas");
+        const scale = Math.min(1, 480 / video.videoWidth);
+        off.width = Math.round(video.videoWidth * scale);
+        off.height = Math.round(video.videoHeight * scale);
+        const octx = off.getContext("2d")!;
+        octx.drawImage(video, 0, 0, off.width, off.height);
+        const raw: Detection[] = await detector(off.toDataURL("image/jpeg", 0.7), { threshold: 0.35, percentage: false });
+        const sx = video.videoWidth / off.width;
+        const sy = video.videoHeight / off.height;
+        const scaled = raw.map((d) => ({
+          ...d,
+          box: { xmin: d.box.xmin * sx, ymin: d.box.ymin * sy, xmax: d.box.xmax * sx, ymax: d.box.ymax * sy },
+        }));
+        detsRef.current = scaled;
+        setDets(scaled);
+        const now = performance.now();
+        setFps(1000 / (now - lastRef.current));
+        lastRef.current = now;
       } catch (e) {
         console.error(e);
+      } finally {
         busyRef.current = false;
       }
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((r) => setTimeout(r, 0));
     }
   }, []);
 
-
-  const capture = async () => {
-    const video = videoRef.current;
-    const overlay = canvasRef.current;
-    if (!video || !overlay || !video.videoWidth) return;
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const context = canvas.getContext("2d");
-    if (!context) return;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    context.drawImage(overlay, 0, 0);
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
-    if (!blob) return;
+  const capture = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
+    a.href = canvas.toDataURL("image/png");
     a.download = `rekor-os-capture-${Date.now()}.png`;
     a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
 
   const startRecording = () => {
-    const video = videoRef.current;
-    const overlay = canvasRef.current;
-    if (!video || !overlay || !video.videoWidth) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
     if (recUrl) URL.revokeObjectURL(recUrl);
     setRecUrl(null);
     chunksRef.current = [];
-    const canvas = recordCanvasRef.current ?? document.createElement("canvas");
-    recordCanvasRef.current = canvas;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const context = canvas.getContext("2d");
-    if (!context) return;
-    const compose = () => {
-      if (!recorderRef.current || recorderRef.current.state === "inactive") return;
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      context.drawImage(overlay, 0, 0);
-      recordRafRef.current = requestAnimationFrame(compose);
-    };
-    const stream = canvas.captureStream(24);
+    const stream = canvas.captureStream(30);
     const rec = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9" : "video/webm" });
     rec.ondataavailable = (e) => e.data.size && chunksRef.current.push(e.data);
     rec.onstop = () => {
@@ -323,7 +197,6 @@ function LivePage() {
     };
     recorderRef.current = rec;
     rec.start();
-    compose();
     setRecording(true);
   };
 
@@ -355,15 +228,8 @@ function LivePage() {
           ref={wrapRef}
           className="relative mt-8 aspect-video bg-black rounded-lg border border-[color:var(--rkr-border)] overflow-hidden"
         >
-          <video
-            ref={videoRef}
-            muted
-            playsInline
-            autoPlay
-            className="absolute inset-0 w-full h-full object-contain"
-          />
-          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-contain pointer-events-none" />
-
+          <video ref={videoRef} muted playsInline className="hidden" />
+          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-contain" />
 
           {status !== "live" && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center px-6">
@@ -389,22 +255,13 @@ function LivePage() {
           {status === "live" && (
             <>
               <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2 pointer-events-none font-[family-name:var(--font-mono)] text-[10px]">
-                <div className="flex flex-col gap-2 items-start">
-                  <div className="flex gap-2 items-center bg-black/60 border border-white/10 rounded px-2 py-1 backdrop-blur">
-                    <span className={`text-[color:var(--rkr-primary)] ${recording ? "animate-pulse" : ""}`}>●</span>
-                    <span>{recording ? "RECORDING" : "LIVE"}</span>
-                  </div>
-                  {modelStatus !== "ready" && (
-                    <div className="flex gap-2 items-center bg-black/60 border border-white/10 rounded px-2 py-1 backdrop-blur text-[color:var(--rkr-muted)]">
-                      <span className="size-2.5 rounded-full border border-[color:var(--rkr-primary)] border-t-transparent animate-spin" />
-                      <span>{modelStatus === "error" ? "MODEL FAILED" : `LOADING MODEL ${modelProgress}%`}</span>
-                    </div>
-                  )}
+                <div className="flex gap-2 items-center bg-black/60 border border-white/10 rounded px-2 py-1 backdrop-blur">
+                  <span className={`text-[color:var(--rkr-primary)] ${recording ? "animate-pulse" : ""}`}>●</span>
+                  <span>{recording ? "RECORDING" : "LIVE"}</span>
                 </div>
-
                 <div className="flex gap-3 border border-white/10 bg-black/60 rounded px-3 py-1.5 backdrop-blur">
                   <div className="text-center">
-                    <div className="text-[9px] text-[color:var(--rkr-muted)] leading-none">DET/S</div>
+                    <div className="text-[9px] text-[color:var(--rkr-muted)] leading-none">FPS</div>
                     <div className="text-xs">{fps ? fps.toFixed(1) : "—"}</div>
                   </div>
                   <div className="w-px bg-white/10" />
@@ -456,10 +313,6 @@ function LivePage() {
                 setStatus("idle");
                 setDets([]);
                 detsRef.current = [];
-                targetsRef.current = [];
-                stabRef.current.reset();
-
-
               }}
               className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.18em] px-5 py-3 rounded border border-[color:var(--rkr-border)] hover:border-[color:var(--rkr-fg)] transition-colors"
             >
