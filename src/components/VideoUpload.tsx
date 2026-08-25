@@ -2,17 +2,23 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { trackerStore } from "@/lib/tracker-store";
 
+type Mode = "choose" | "upload" | "live-choose";
+
 export function VideoUpload() {
+  const [mode, setMode] = useState<Mode>("choose");
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
-  // Allow Launch / Start Tracking buttons anywhere on the page to open the picker.
+  // Launch / Start Tracking buttons anywhere on the page reopen this card's chooser.
   useEffect(() => {
-    const openPicker = () => inputRef.current?.click();
-    window.addEventListener("rkr:open-upload", openPicker);
-    return () => window.removeEventListener("rkr:open-upload", openPicker);
+    const open = () => {
+      setMode("choose");
+      document.getElementById("rkr-upload-card")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    };
+    window.addEventListener("rkr:open-upload", open);
+    return () => window.removeEventListener("rkr:open-upload", open);
   }, []);
 
   useEffect(() => {
@@ -26,6 +32,7 @@ export function VideoUpload() {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setFile(f);
       setPreviewUrl(URL.createObjectURL(f));
+      setMode("upload");
     },
     [previewUrl],
   );
@@ -47,42 +54,91 @@ export function VideoUpload() {
     setFile(null);
     setPreviewUrl(null);
     if (inputRef.current) inputRef.current.value = "";
+    setMode("choose");
   };
 
+  const tile =
+    "flex flex-col items-center justify-center gap-3 rounded-md border border-[color:var(--rkr-border)] hover:border-[color:var(--rkr-primary)] bg-white/[0.02] hover:bg-[color:var(--rkr-primary)]/5 transition-colors px-6 py-8 text-center group";
+
   return (
-    <div className="relative">
+    <div className="relative" id="rkr-upload-card">
       <div
         className="relative aspect-[4/3] bg-black rounded-lg border border-[color:var(--rkr-border)] overflow-hidden shadow-[0_30px_80px_-20px_rgba(255,92,0,0.25)]"
         onDragOver={(e) => e.preventDefault()}
         onDrop={onDrop}
       >
-        {!file && (
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="absolute inset-3 rounded-md border-2 border-dashed border-[color:var(--rkr-primary)]/60 hover:border-[color:var(--rkr-primary)] transition-colors flex flex-col items-center justify-center gap-4 group"
-          >
-            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" className="text-[color:var(--rkr-primary)] group-hover:scale-110 transition-transform">
-              <path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <div className="text-center px-6">
+        {mode === "choose" && (
+          <div className="absolute inset-3 flex flex-col justify-center gap-3">
+            <div className="text-center">
               <div className="font-[family-name:var(--font-display)] text-2xl font-extrabold text-[color:var(--rkr-fg)]">
-                Upload Video
+                Start a session
               </div>
-              <div className="mt-1.5 text-[13px] text-[color:var(--rkr-muted)]">
-                Click to upload or drag &amp; drop
+              <div className="mt-1 text-[13px] text-[color:var(--rkr-muted)]">
+                Choose how you want to detect &amp; track objects
               </div>
             </div>
-            <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-widest bg-[color:var(--rkr-primary)] text-black px-4 py-2 rounded font-bold">
-              Choose Video →
-            </span>
-            <div className="font-[family-name:var(--font-mono)] text-[9.5px] uppercase tracking-widest text-[color:var(--rkr-muted)]">
-              MP4 · MOV · WEBM · Max 500MB
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button type="button" onClick={() => setMode("live-choose")} className={tile}>
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" className="text-[color:var(--rkr-primary)] group-hover:scale-110 transition-transform">
+                  <path d="M15 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-3.5l6 3.5V7z" />
+                </svg>
+                <div className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-widest font-bold text-[color:var(--rkr-fg)]">
+                  Start live video detection
+                </div>
+                <div className="text-[11px] text-[color:var(--rkr-muted)]">Use your camera in real time</div>
+              </button>
+              <button type="button" onClick={() => inputRef.current?.click()} className={tile}>
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="text-[color:var(--rkr-primary)] group-hover:scale-110 transition-transform">
+                  <path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+                </svg>
+                <div className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-widest font-bold text-[color:var(--rkr-fg)]">
+                  Upload video
+                </div>
+                <div className="text-[11px] text-[color:var(--rkr-muted)]">MP4 · MOV · WEBM · Max 500MB</div>
+              </button>
             </div>
-          </button>
+          </div>
         )}
 
-        {file && previewUrl && (
+        {mode === "live-choose" && (
+          <div className="absolute inset-3 flex flex-col justify-center gap-3">
+            <div className="text-center">
+              <div className="font-[family-name:var(--font-display)] text-2xl font-extrabold text-[color:var(--rkr-fg)]">
+                Live video detection
+              </div>
+              <div className="mt-1 text-[13px] text-[color:var(--rkr-muted)]">Pick a live mode</div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button type="button" onClick={() => navigate({ to: "/live" })} className={tile}>
+                <span className="text-2xl text-[color:var(--rkr-primary)]">◉</span>
+                <div className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-widest font-bold text-[color:var(--rkr-fg)]">
+                  Start live camera
+                </div>
+                <div className="text-[11px] text-[color:var(--rkr-muted)]">
+                  Detect live, capture stills or record the tracked feed
+                </div>
+              </button>
+              <button type="button" onClick={() => navigate({ to: "/record" })} className={tile}>
+                <span className="text-2xl text-[color:var(--rkr-primary)]">●</span>
+                <div className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-widest font-bold text-[color:var(--rkr-fg)]">
+                  Record live video &amp; upload
+                </div>
+                <div className="text-[11px] text-[color:var(--rkr-muted)]">
+                  Record a clip, then process it like an upload
+                </div>
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMode("choose")}
+              className="mx-auto font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.18em] text-[color:var(--rkr-muted)] hover:text-[color:var(--rkr-fg)] transition-colors"
+            >
+              ← Back
+            </button>
+          </div>
+        )}
+
+        {mode === "upload" && file && previewUrl && (
           <>
             <video
               key={previewUrl}
@@ -115,7 +171,7 @@ export function VideoUpload() {
         />
       </div>
 
-      {file && (
+      {mode === "upload" && file && (
         <div className="mt-4 flex flex-wrap gap-3">
           <button
             onClick={startTracking}
