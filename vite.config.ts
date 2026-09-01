@@ -8,12 +8,23 @@ import { fileURLToPath } from "node:url";
 
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
-// @huggingface/transformers seeds a PRNG at module scope, which the Worker runtime
-// rejects ("Disallowed operation called within global scope"). It is only ever used
-// in the browser, so alias it away from the SSR bundle entirely.
+// @huggingface/transformers seeds a PRNG at module scope, which the server runtime
+// rejects ("Disallowed operation called within global scope") — that crashed every
+// SSR request with a 500. The library is only ever used in the browser, so swap it
+// for a stub in every non-client environment.
 const transformersStub = fileURLToPath(
   new URL("./src/lib/transformers-ssr-stub.ts", import.meta.url),
 );
+
+const stubTransformersOnServer = {
+  name: "stub-transformers-on-server",
+  enforce: "pre" as const,
+  resolveId(this: { environment?: { name?: string } }, source: string) {
+    if (source !== "@huggingface/transformers") return null;
+    if (this.environment?.name === "client") return null;
+    return transformersStub;
+  },
+};
 
 export default defineConfig({
   tanstackStart: {
@@ -22,12 +33,6 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
-    environments: {
-      ssr: {
-        resolve: {
-          alias: [{ find: /^@huggingface\/transformers$/, replacement: transformersStub }],
-        },
-      },
-    },
+    plugins: [stubTransformersOnServer],
   },
 });
