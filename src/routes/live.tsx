@@ -455,4 +455,3 @@ function LivePage() {
   );
 }
 
-export default LivePage;
