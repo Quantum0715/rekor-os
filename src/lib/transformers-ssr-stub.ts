@@ -12,5 +12,7 @@ export const env = {} as Record<string, unknown>;
 export const RawImage = {
   fromCanvas: unavailable,
 };
+export const AutoModel = { from_pretrained: unavailable };
+export const AutoProcessor = { from_pretrained: unavailable };
 
-export default { pipeline, env, RawImage };
+export default { pipeline, env, RawImage, AutoModel, AutoProcessor };

@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { trackerStore } from "@/lib/tracker-store";
+import { loadDetector } from "@/lib/detector";
+import { Tracker, type TrackedDetection } from "@/lib/tracker";
 
 export const Route = createFileRoute("/track")({
   head: () => ({
@@ -15,13 +17,49 @@ export const Route = createFileRoute("/track")({
   component: TrackPage,
 });
 
-type Detection = {
-  box: { xmin: number; ymin: number; xmax: number; ymax: number };
-  label: string;
-  score: number;
-};
+type Detection = TrackedDetection;
 
 type FrameResult = { t: number; dets: Detection[] };
+
+/** Boxes for time `t`, linearly interpolated between the two nearest sampled frames by track ID. */
+function detectionsAt(results: FrameResult[], t: number): Detection[] {
+  if (results.length === 0) return [];
+  if (t <= results[0].t) return results[0].dets;
+  const last = results[results.length - 1];
+  if (t >= last.t) return last.dets;
+  let lo = 0;
+  let hi = results.length - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (results[mid].t <= t) lo = mid;
+    else hi = mid;
+  }
+  const a = results[lo];
+  const b = results[hi];
+  const span = b.t - a.t || 1;
+  const k = Math.min(1, Math.max(0, (t - a.t) / span));
+  const next = new Map(b.dets.map((d) => [d.id, d]));
+  const out: Detection[] = [];
+  for (const d of a.dets) {
+    const n = next.get(d.id);
+    if (!n) {
+      if (k < 0.5) out.push(d);
+      continue;
+    }
+    out.push({
+      ...d,
+      box: {
+        xmin: d.box.xmin + (n.box.xmin - d.box.xmin) * k,
+        ymin: d.box.ymin + (n.box.ymin - d.box.ymin) * k,
+        xmax: d.box.xmax + (n.box.xmax - d.box.xmax) * k,
+        ymax: d.box.ymax + (n.box.ymax - d.box.ymax) * k,
+      },
+    });
+    next.delete(d.id);
+  }
+  if (k >= 0.5) next.forEach((d) => out.push(d));
+  return out;
+}
 
 const LABEL_COLORS: Record<string, string> = {
   person: "#22d3ee",
@@ -95,15 +133,8 @@ function TrackPage() {
         // Stage 1: load model
         setStage("load");
         setProgress(0);
-        const { pipeline, env } = await import("@huggingface/transformers");
-        env.allowLocalModels = false;
-        const detector = await pipeline("object-detection", "Xenova/yolos-tiny", {
-          progress_callback: (p: any) => {
-            if (cancelled) return;
-            if (p.status === "progress" && typeof p.progress === "number") {
-              setProgress(Math.round(p.progress));
-            }
-          },
+        const detector = await loadDetector((pct) => {
+          if (!cancelled) setProgress(pct);
         });
         if (cancelled) return;
 
@@ -123,17 +154,26 @@ function TrackPage() {
         });
 
         const duration = isFinite(vid.duration) ? vid.duration : 0;
-        const step = 0.4; // seconds between sampled frames
+        // Sample densely on fast hardware, sparser on slow — capped so long
+        // clips never take minutes. Boxes are interpolated between samples.
+        const baseStep = detector.backend === "webgpu" ? 0.2 : 0.35;
+        const maxFrames = detector.backend === "webgpu" ? 240 : 120;
+        const step = Math.max(baseStep, duration / maxFrames);
         const times: number[] = [];
         for (let t = 0; t < Math.max(duration, step); t += step) times.push(t);
         if (times.length === 0) times.push(0);
 
         const off = document.createElement("canvas");
-        const scale = Math.min(1, 480 / Math.max(vid.videoWidth || 640, 1));
-        off.width = Math.max(1, Math.round((vid.videoWidth || 640) * scale));
-        off.height = Math.max(1, Math.round((vid.videoHeight || 480) * scale));
-        const octx = off.getContext("2d")!;
+        const vw = vid.videoWidth || 640;
+        const vh = vid.videoHeight || 480;
+        const scale = Math.min(1, detector.offlineSize / Math.max(vw, vh));
+        off.width = Math.max(1, Math.round(vw * scale));
+        off.height = Math.max(1, Math.round(vh * scale));
+        const octx = off.getContext("2d", { willReadFrequently: true })!;
+        const sx = vw / off.width;
+        const sy = vh / off.height;
 
+        const tracker = new Tracker({ minHits: 1, maxMisses: 2, alpha: 1, iouThreshold: 0.25 });
         const frames: FrameResult[] = [];
         for (let i = 0; i < times.length; i++) {
           if (cancelled) return;
@@ -151,21 +191,15 @@ function TrackPage() {
             }
           });
           octx.drawImage(vid, 0, 0, off.width, off.height);
-          const url = off.toDataURL("image/jpeg", 0.7);
-          const raw: Detection[] = await detector(url, { threshold: 0.35, percentage: false });
-          const sx = (vid.videoWidth || off.width) / off.width;
-          const sy = (vid.videoHeight || off.height) / off.height;
+          const raw = await detector.detect(off, { size: detector.offlineSize, threshold: 0.4 });
           const scaled = raw.map((d) => ({
             ...d,
-            box: {
-              xmin: d.box.xmin * sx,
-              ymin: d.box.ymin * sy,
-              xmax: d.box.xmax * sx,
-              ymax: d.box.ymax * sy,
-            },
+            box: { xmin: d.box.xmin * sx, ymin: d.box.ymin * sy, xmax: d.box.xmax * sx, ymax: d.box.ymax * sy },
           }));
-          frames.push({ t, dets: scaled });
+          frames.push({ t, dets: tracker.update(scaled) });
           setProgress(Math.round(((i + 1) / times.length) * 100));
+          // Let the UI repaint between frames so progress rings stay smooth.
+          if (i % 3 === 0) await new Promise((r) => requestAnimationFrame(() => r(null)));
         }
         if (cancelled) return;
 
@@ -225,21 +259,11 @@ function TrackPage() {
       if (!ctx) return;
       ctx.clearRect(0, 0, w, h);
 
-      // Find nearest cached frame by timestamp
-      const t = video.currentTime;
-      let nearest = results[0];
-      let bestD = Math.abs(nearest.t - t);
-      for (const f of results) {
-        const d = Math.abs(f.t - t);
-        if (d < bestD) {
-          bestD = d;
-          nearest = f;
-        }
-      }
+      const dets = detectionsAt(results, video.currentTime);
 
       ctx.font = `${Math.max(12, Math.round(w / 60))}px ui-monospace, monospace`;
       ctx.textBaseline = "top";
-      for (const d of nearest.dets) {
+      for (const d of dets) {
         const color = colorFor(d.label);
         const x = d.box.xmin;
         const y = d.box.ymin;
