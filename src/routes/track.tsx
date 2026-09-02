@@ -15,13 +15,49 @@ export const Route = createFileRoute("/track")({
   component: TrackPage,
 });
 
-type Detection = {
-  box: { xmin: number; ymin: number; xmax: number; ymax: number };
-  label: string;
-  score: number;
-};
+type Detection = TrackedDetection;
 
 type FrameResult = { t: number; dets: Detection[] };
+
+/** Boxes for time `t`, linearly interpolated between the two nearest sampled frames by track ID. */
+function detectionsAt(results: FrameResult[], t: number): Detection[] {
+  if (results.length === 0) return [];
+  if (t <= results[0].t) return results[0].dets;
+  const last = results[results.length - 1];
+  if (t >= last.t) return last.dets;
+  let lo = 0;
+  let hi = results.length - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (results[mid].t <= t) lo = mid;
+    else hi = mid;
+  }
+  const a = results[lo];
+  const b = results[hi];
+  const span = b.t - a.t || 1;
+  const k = Math.min(1, Math.max(0, (t - a.t) / span));
+  const next = new Map(b.dets.map((d) => [d.id, d]));
+  const out: Detection[] = [];
+  for (const d of a.dets) {
+    const n = next.get(d.id);
+    if (!n) {
+      if (k < 0.5) out.push(d);
+      continue;
+    }
+    out.push({
+      ...d,
+      box: {
+        xmin: d.box.xmin + (n.box.xmin - d.box.xmin) * k,
+        ymin: d.box.ymin + (n.box.ymin - d.box.ymin) * k,
+        xmax: d.box.xmax + (n.box.xmax - d.box.xmax) * k,
+        ymax: d.box.ymax + (n.box.ymax - d.box.ymax) * k,
+      },
+    });
+    next.delete(d.id);
+  }
+  if (k >= 0.5) next.forEach((d) => out.push(d));
+  return out;
+}
 
 const LABEL_COLORS: Record<string, string> = {
   person: "#22d3ee",
