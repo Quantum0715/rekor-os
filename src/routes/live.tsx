@@ -14,11 +14,7 @@ export const Route = createFileRoute("/live")({
   component: LivePage,
 });
 
-type Detection = {
-  box: { xmin: number; ymin: number; xmax: number; ymax: number };
-  label: string;
-  score: number;
-};
+type Detection = TrackedDetection;
 
 const LABEL_COLORS: Record<string, string> = {
   person: "#22d3ee",
@@ -44,8 +40,8 @@ function LivePage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const detectorRef = useRef<any>(null);
-  const rawImageRef = useRef<any>(null);
+  const detectorRef = useRef<Detector | null>(null);
+  const trackerRef = useRef(new Tracker({ minHits: 2, maxMisses: 8, alpha: 0.7 }));
   const offRef = useRef<HTMLCanvasElement | null>(null);
 
   const streamRef = useRef<MediaStream | null>(null);
@@ -82,31 +78,8 @@ function LivePage() {
       video.srcObject = stream;
       await video.play();
 
-      const { pipeline, env, RawImage } = await import("@huggingface/transformers");
-      env.allowLocalModels = false;
-      rawImageRef.current = RawImage;
-      try {
-        const threads = Math.min(4, Math.max(1, (navigator.hardwareConcurrency || 4) - 1));
-        (env.backends as any).onnx.wasm.numThreads = threads;
-      } catch {
-        /* ignore */
-      }
-
-      const supportsWebGPU = typeof navigator !== "undefined" && "gpu" in navigator;
-      const load = (opts: any) =>
-        pipeline("object-detection", "Xenova/yolos-tiny", {
-          ...opts,
-          progress_callback: (p: any) => {
-            if (p.status === "progress" && typeof p.progress === "number") setModelProgress(Math.round(p.progress));
-          },
-        });
-      try {
-        detectorRef.current = supportsWebGPU
-          ? await load({ device: "webgpu", dtype: "fp16" })
-          : await load({ dtype: "q8" });
-      } catch {
-        detectorRef.current = await load({ dtype: "q8" });
-      }
+      trackerRef.current.reset();
+      detectorRef.current = await loadDetector((pct) => setModelProgress(pct));
 
       setStatus("live");
       runningRef.current = true;
