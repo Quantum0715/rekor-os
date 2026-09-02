@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { loadDetector, type Detector } from "@/lib/detector";
+import { Tracker, type TrackedDetection } from "@/lib/tracker";
 
 export const Route = createFileRoute("/live")({
   head: () => ({
@@ -100,29 +102,12 @@ function LivePage() {
     // between inference passes instead of jumping.
     const smooth = () => {
       const targets = targetsRef.current;
-      const prev = detsRef.current;
-      const used = new Set<number>();
-      const next: Detection[] = targets.map((t) => {
-        let bestIdx = -1;
-        let bestDist = Infinity;
-        prev.forEach((p, i) => {
-          if (used.has(i) || p.label !== t.label) return;
-          const d =
-            Math.abs(p.box.xmin - t.box.xmin) +
-            Math.abs(p.box.ymin - t.box.ymin) +
-            Math.abs(p.box.xmax - t.box.xmax) +
-            Math.abs(p.box.ymax - t.box.ymax);
-          if (d < bestDist) {
-            bestDist = d;
-            bestIdx = i;
-          }
-        });
-        const span = Math.max(1, t.box.xmax - t.box.xmin) * 3;
-        if (bestIdx === -1 || bestDist > span) return t;
-        used.add(bestIdx);
-        const p = prev[bestIdx]!;
-        const k = 0.35;
-        const lerp = (a: number, b: number) => a + (b - a) * k;
+      const prev = new Map(detsRef.current.map((p) => [p.id, p]));
+      const k = 0.35;
+      const lerp = (a: number, b: number) => a + (b - a) * k;
+      detsRef.current = targets.map((t) => {
+        const p = prev.get(t.id);
+        if (!p) return t;
         return {
           ...t,
           box: {
@@ -133,7 +118,6 @@ function LivePage() {
           },
         };
       });
-      detsRef.current = next;
     };
 
     const draw = () => {
@@ -181,20 +165,19 @@ function LivePage() {
     while (runningRef.current) {
       const video = videoRef.current;
       const detector = detectorRef.current;
-      const RawImage = rawImageRef.current;
-      if (!video || !detector || !RawImage || !video.videoWidth || busyRef.current) {
+      if (!video || !detector || !video.videoWidth || busyRef.current) {
         await new Promise((r) => setTimeout(r, 50));
         continue;
       }
       busyRef.current = true;
       try {
-        // Reuse one offscreen canvas at a small size — no per-frame allocation, no data-URL encoding.
+        // Reuse one offscreen canvas at the inference size — no per-frame allocation, no data-URL encoding.
         let off = offRef.current;
         if (!off) {
           off = document.createElement("canvas");
           offRef.current = off;
         }
-        const scale = Math.min(1, 320 / video.videoWidth);
+        const scale = Math.min(1, detector.liveSize / Math.max(video.videoWidth, video.videoHeight));
         const ow = Math.round(video.videoWidth * scale);
         const oh = Math.round(video.videoHeight * scale);
         if (off.width !== ow || off.height !== oh) {
@@ -203,16 +186,16 @@ function LivePage() {
         }
         const octx = off.getContext("2d", { willReadFrequently: true })!;
         octx.drawImage(video, 0, 0, ow, oh);
-        const image = RawImage.fromCanvas(off);
-        const raw: Detection[] = await detector(image, { threshold: 0.4, percentage: false });
+        const raw = await detector.detect(off, { size: detector.liveSize, threshold: 0.45 });
         const sx = video.videoWidth / ow;
         const sy = video.videoHeight / oh;
         const scaled = raw.map((d) => ({
           ...d,
           box: { xmin: d.box.xmin * sx, ymin: d.box.ymin * sy, xmax: d.box.xmax * sx, ymax: d.box.ymax * sy },
         }));
-        targetsRef.current = scaled;
-        setDets(scaled);
+        const tracked = trackerRef.current.update(scaled);
+        targetsRef.current = tracked;
+        setDets(tracked);
         const now = performance.now();
         const inst = 1000 / Math.max(1, now - lastRef.current);
         lastRef.current = now;
@@ -224,7 +207,6 @@ function LivePage() {
       }
       // Yield to the browser so the preview keeps painting at full frame rate.
       await new Promise((r) => requestAnimationFrame(() => r(null)));
-
     }
   }, []);
 
