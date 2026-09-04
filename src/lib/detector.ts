@@ -13,9 +13,8 @@ export type DetectorBackend = "webgpu" | "wasm";
 export type Detector = {
   backend: DetectorBackend;
   modelId: string;
-  /** Recommended inference edge (px) for real-time use on this device. */
+  /** Source canvas edge (px) to draw before inference. YOLOv10 ONNX expects 640x640. */
   liveSize: number;
-  /** Recommended inference edge (px) for offline / per-frame processing. */
   offlineSize: number;
   detect(source: HTMLCanvasElement, opts?: { size?: number; threshold?: number }): Promise<Detection[]>;
 };
@@ -74,14 +73,14 @@ async function build(): Promise<Detector> {
       id: "onnx-community/yolov10s",
       opts: { device: "webgpu", dtype: "fp32" },
       backend: "webgpu",
-      live: 480,
+      live: 640,
       offline: 640,
     });
     candidates.push({
       id: "onnx-community/yolov10n",
       opts: { device: "webgpu", dtype: "fp32" },
       backend: "webgpu",
-      live: 416,
+      live: 640,
       offline: 640,
     });
   }
@@ -89,15 +88,15 @@ async function build(): Promise<Detector> {
     id: "onnx-community/yolov10n",
     opts: { device: "wasm", dtype: lowEnd ? "q8" : "fp32" },
     backend: "wasm",
-    live: lowEnd ? 288 : 352,
-    offline: lowEnd ? 416 : 512,
+    live: 640,
+    offline: 640,
   });
   candidates.push({
     id: "onnx-community/yolov10n",
     opts: { device: "wasm", dtype: "q8" },
     backend: "wasm",
-    live: 288,
-    offline: 416,
+    live: 640,
+    offline: 640,
   });
 
   let lastErr: unknown = null;
@@ -105,7 +104,6 @@ async function build(): Promise<Detector> {
     try {
       const model = await AutoModel.from_pretrained(c.id, { ...c.opts, progress_callback: report });
       const processor = await AutoProcessor.from_pretrained(c.id);
-      const fe = processor.image_processor ?? processor.feature_extractor ?? processor;
       const id2label: Record<string, string> = model.config?.id2label ?? {};
 
       // Warm-up pass so the first real frame doesn't pay shader/kernel compile cost.
