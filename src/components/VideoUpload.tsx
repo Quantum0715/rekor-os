@@ -82,7 +82,7 @@ export function VideoUpload() {
               </div>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <button type="button" onClick={() => setMode("live-choose")} className={tile}>
+              <button type="button" onClick={() => { preloadDetector(); setMode("live-choose"); }} className={tile}>
                 <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" className="text-[color:var(--rkr-primary)] group-hover:scale-110 transition-transform">
                   <path d="M15 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-3.5l6 3.5V7z" />
                 </svg>
