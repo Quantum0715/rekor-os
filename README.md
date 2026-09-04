@@ -189,7 +189,7 @@ The detection results are rendered over the video so that users can visually ins
 │       JSON · Annotated Video            │
 └─────────────────────────────────────────┘
 
-Workflow
+## Workflow
 1. Upload / Camera Selection
 
 The user can upload a supported video file or start the live camera mode.
