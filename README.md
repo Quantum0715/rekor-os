@@ -188,3 +188,163 @@ The detection results are rendered over the video so that users can visually ins
 │           Review & Export               │
 │       JSON · Annotated Video            │
 └─────────────────────────────────────────┘
+
+Workflow
+1. Upload / Camera Selection
+
+The user can upload a supported video file or start the live camera mode.
+
+Supported video formats include:
+
+MP4
+MOV
+WEBM
+2. Model Loading
+
+The YOLOv10 model is initialized before the detection process begins.
+
+3. Frame Processing
+
+The input video is processed frame by frame so that individual frames can be analysed by the detection model.
+
+4. Preprocessing
+
+Frames are prepared according to the requirements of the detection pipeline before being passed to YOLOv10.
+
+5. YOLOv10 Detection
+
+YOLOv10 identifies objects within each processed frame and produces bounding boxes, class labels, and confidence scores.
+
+6. Object Tracking
+
+Detected objects are associated across consecutive frames to provide visual continuity during video playback.
+
+7. Rendering
+
+Detection and tracking information is displayed over the video using the browser's rendering capabilities.
+
+8. Review
+
+Users can review the processed output and compare the original footage with the annotated result.
+
+9. Export
+
+Processed results can be exported for further analysis, including structured detection data and annotated video.
+
+Advantages
+Privacy-First
+
+The application is designed around browser-based processing, reducing the need to send video footage to an external processing server.
+
+No Complex Installation
+
+Users can access the application through a web browser without installing a traditional desktop application.
+
+Real-Time Capable
+
+YOLOv10 provides fast object detection suitable for video-processing workflows, while performance depends on the user's hardware and browser environment.
+
+Lightweight Approach
+
+The project focuses on practical video analysis without requiring a large server-side infrastructure.
+
+Cross-Platform
+
+The web-based interface can be accessed from modern browsers across desktop and mobile platforms.
+
+Clean Forensic-Style Interface
+
+The interface is designed around a focused workspace that makes video review and detection results easy to inspect.
+
+Exportable Results
+
+Detection information and processed video can be exported for documentation, research, and further analysis.
+
+Low Infrastructure Cost
+
+Browser-based processing can reduce the requirement for dedicated GPU servers for supported workloads.
+
+Applications
+Traffic Monitoring
+
+Detect and classify vehicles, pedestrians, and two-wheelers in road videos.
+
+Retail Analytics
+
+Analyse customer movement, dwell time, and queue behaviour.
+
+Surveillance Review
+
+Assist in reviewing recorded footage by identifying people and objects of interest.
+
+Sports Analysis
+
+Track players and sports equipment during matches and training sessions.
+
+Wildlife Monitoring
+
+Detect and count animals in camera-trap and other wildlife videos.
+
+Industrial Safety
+
+Monitor human-machine interaction and support safety-related video analysis.
+
+Education and Research
+
+Demonstrate Computer Vision and object detection concepts and support research activities.
+
+Crowd Management
+
+Analyse crowd density and movement patterns in public spaces.
+
+Future Scope
+
+The project can be extended with several advanced capabilities.
+
+Persistent ID Tracking
+
+Integrate dedicated tracking algorithms such as ByteTrack, SORT, or DeepSORT to provide more consistent object identities across frames.
+
+Trajectory Visualisation
+
+Display object movement paths, trajectories, and heatmaps for deeper video analysis.
+
+Custom Model Support
+
+Allow users to load compatible custom machine-learning models for domain-specific object detection.
+
+Cloud Processing
+
+Provide an optional cloud-based processing mode for videos that are too computationally demanding for local processing.
+
+CSV and MOT Export
+
+Add support for CSV and MOTChallenge formats for research and benchmarking workflows.
+
+User Accounts and Project Library
+
+Allow users to save and manage completed tracking sessions and project data.
+
+Mobile Application
+
+Package the web application as a PWA or native-style mobile application using a suitable wrapper.
+
+Advanced Analytics
+
+Add features such as speed estimation, direction vectors, dwell-time analysis, and anomaly detection.
+
+Multi-Camera Support
+
+Allow multiple camera feeds to be analysed together for broader tracking scenarios.
+
+Annotation Editor
+
+Provide tools for users to correct detections and export annotations for future model training.
+
+Limitations
+
+The current performance of the application depends on the user's hardware, browser capabilities, video resolution, and number of objects present in a scene.
+
+Browser-based machine-learning inference may perform differently across devices, particularly when hardware acceleration is unavailable.
+
+Tracking quality can also vary when objects become heavily occluded, move rapidly, leave the camera view, or appear very close to one another.
