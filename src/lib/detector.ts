@@ -13,9 +13,8 @@ export type DetectorBackend = "webgpu" | "wasm";
 export type Detector = {
   backend: DetectorBackend;
   modelId: string;
-  /** Recommended inference edge (px) for real-time use on this device. */
+  /** Source canvas edge (px) to draw before inference. YOLOv10 ONNX expects 640x640. */
   liveSize: number;
-  /** Recommended inference edge (px) for offline / per-frame processing. */
   offlineSize: number;
   detect(source: HTMLCanvasElement, opts?: { size?: number; threshold?: number }): Promise<Detection[]>;
 };
@@ -49,13 +48,6 @@ async function build(): Promise<Detector> {
   env.allowLocalModels = false;
   env.useBrowserCache = true;
 
-  try {
-    const threads = Math.min(4, Math.max(1, (navigator.hardwareConcurrency || 4) - 1));
-    env.backends.onnx.wasm.numThreads = threads;
-    env.backends.onnx.wasm.proxy = false;
-  } catch {
-    /* ignore */
-  }
 
   const report = (p: any) => {
     if (p?.status === "progress" && typeof p.progress === "number") {
@@ -67,37 +59,49 @@ async function build(): Promise<Detector> {
   const webgpu = await hasUsableWebGPU();
   const lowEnd = isLowEndDevice();
 
+  try {
+    // Multi-threaded WASM needs cross-origin isolation, which we can't guarantee,
+    // so keep one thread but run it in a worker: inference never blocks the UI
+    // thread, which is what made the page feel frozen while detecting.
+    env.backends.onnx.wasm.numThreads = 1;
+    env.backends.onnx.wasm.proxy = !webgpu;
+  } catch {
+    /* ignore */
+  }
+
   // Candidate configs, best first. Each falls back to the next on failure.
   const candidates: Array<{ id: string; opts: any; backend: DetectorBackend; live: number; offline: number }> = [];
-  if (webgpu) {
+  if (webgpu && !lowEnd) {
     candidates.push({
       id: "onnx-community/yolov10s",
       opts: { device: "webgpu", dtype: "fp32" },
       backend: "webgpu",
-      live: 480,
+      live: 640,
       offline: 640,
     });
+  }
+  if (webgpu) {
     candidates.push({
       id: "onnx-community/yolov10n",
       opts: { device: "webgpu", dtype: "fp32" },
       backend: "webgpu",
-      live: 416,
+      live: 640,
       offline: 640,
     });
   }
   candidates.push({
     id: "onnx-community/yolov10n",
-    opts: { device: "wasm", dtype: lowEnd ? "q8" : "fp32" },
+    opts: { device: "wasm", dtype: "fp32" },
     backend: "wasm",
-    live: lowEnd ? 288 : 352,
-    offline: lowEnd ? 416 : 512,
+    live: 640,
+    offline: 640,
   });
   candidates.push({
     id: "onnx-community/yolov10n",
     opts: { device: "wasm", dtype: "q8" },
     backend: "wasm",
-    live: 288,
-    offline: 416,
+    live: 640,
+    offline: 640,
   });
 
   let lastErr: unknown = null;
@@ -105,16 +109,13 @@ async function build(): Promise<Detector> {
     try {
       const model = await AutoModel.from_pretrained(c.id, { ...c.opts, progress_callback: report });
       const processor = await AutoProcessor.from_pretrained(c.id);
-      const fe = processor.image_processor ?? processor.feature_extractor ?? processor;
       const id2label: Record<string, string> = model.config?.id2label ?? {};
 
       // Warm-up pass so the first real frame doesn't pay shader/kernel compile cost.
       try {
         const warm = document.createElement("canvas");
-        warm.width = warm.height = 64;
+        warm.width = warm.height = 640;
         const img = RawImage.fromCanvas(warm);
-        fe.size = { longest_edge: 64 };
-        fe.pad_size = 64;
         const { pixel_values } = await processor(img);
         await model({ images: pixel_values });
       } catch {
@@ -122,10 +123,7 @@ async function build(): Promise<Detector> {
       }
 
       const detect: Detector["detect"] = async (source, opts) => {
-        const size = opts?.size ?? c.live;
         const threshold = opts?.threshold ?? 0.45;
-        fe.size = { longest_edge: size };
-        fe.pad_size = size;
         const image = RawImage.fromCanvas(source);
         const { pixel_values, reshaped_input_sizes } = await processor(image);
         const out = await model({ images: pixel_values });

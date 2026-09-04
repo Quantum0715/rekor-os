@@ -156,8 +156,8 @@ function TrackPage() {
         const duration = isFinite(vid.duration) ? vid.duration : 0;
         // Sample densely on fast hardware, sparser on slow — capped so long
         // clips never take minutes. Boxes are interpolated between samples.
-        const baseStep = detector.backend === "webgpu" ? 0.2 : 0.35;
-        const maxFrames = detector.backend === "webgpu" ? 240 : 120;
+        const baseStep = detector.backend === "webgpu" ? 0.2 : 0.5;
+        const maxFrames = detector.backend === "webgpu" ? 240 : 60;
         const step = Math.max(baseStep, duration / maxFrames);
         const times: number[] = [];
         for (let t = 0; t < Math.max(duration, step); t += step) times.push(t);

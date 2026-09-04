@@ -150,7 +150,7 @@ function ClientTracker() {
 
 function Tools() {
   const items = [
-    { id: "01", name: "YOLOv9 · Detector", desc: "Real-time bounding-box detection across 80+ COCO classes with configurable confidence thresholds." },
+    { id: "01", name: "YOLOv10 · Detector", desc: "Real-time bounding-box detection across 80+ COCO classes with configurable confidence thresholds." },
     { id: "02", name: "ByteTrack · Tracker", desc: "Multi-object association with occlusion recovery — keeps track IDs stable across frames." },
     { id: "03", name: "Scene Reasoning", desc: "Automatic scene summaries and per-track behaviour notes — dwell, direction, and anomaly flags derived from track history." },
     { id: "04", name: "Trajectory Studio", desc: "Per-object paths, heatmaps and dwell-time overlays for spatial analysis." },
@@ -190,7 +190,7 @@ function Tools() {
 function Flow() {
   const steps = [
     { n: "01", t: "Ingest", d: "Drop MP4 / MOV footage or connect a live feed." },
-    { n: "02", t: "Detect", d: "YOLOv9 draws bounding boxes on every frame." },
+    { n: "02", t: "Detect", d: "YOLOv10 draws bounding boxes on every frame." },
     { n: "03", t: "Associate", d: "ByteTrack assigns and holds stable track IDs." },
     { n: "04", t: "Reason", d: "Track histories are summarised and anomalies flagged." },
     { n: "05", t: "Export · Video", d: "Tracked video, timeline, trajectories and JSON for research." },
