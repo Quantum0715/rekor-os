@@ -48,13 +48,6 @@ async function build(): Promise<Detector> {
   env.allowLocalModels = false;
   env.useBrowserCache = true;
 
-  try {
-    const threads = Math.min(4, Math.max(1, (navigator.hardwareConcurrency || 4) - 1));
-    env.backends.onnx.wasm.numThreads = threads;
-    env.backends.onnx.wasm.proxy = false;
-  } catch {
-    /* ignore */
-  }
 
   const report = (p: any) => {
     if (p?.status === "progress" && typeof p.progress === "number") {
@@ -65,6 +58,16 @@ async function build(): Promise<Detector> {
 
   const webgpu = await hasUsableWebGPU();
   const lowEnd = isLowEndDevice();
+
+  try {
+    // Multi-threaded WASM needs cross-origin isolation, which we can't guarantee,
+    // so keep one thread but run it in a worker: inference never blocks the UI
+    // thread, which is what made the page feel frozen while detecting.
+    env.backends.onnx.wasm.numThreads = 1;
+    env.backends.onnx.wasm.proxy = !webgpu;
+  } catch {
+    /* ignore */
+  }
 
   // Candidate configs, best first. Each falls back to the next on failure.
   const candidates: Array<{ id: string; opts: any; backend: DetectorBackend; live: number; offline: number }> = [];
@@ -86,7 +89,7 @@ async function build(): Promise<Detector> {
   }
   candidates.push({
     id: "onnx-community/yolov10n",
-    opts: { device: "wasm", dtype: lowEnd ? "q8" : "fp32" },
+    opts: { device: "wasm", dtype: "fp32" },
     backend: "wasm",
     live: 640,
     offline: 640,
