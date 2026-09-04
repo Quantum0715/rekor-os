@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { trackerStore } from "@/lib/tracker-store";
+import { preloadDetector } from "@/lib/detector";
 
 type Mode = "choose" | "upload" | "live-choose";
 
