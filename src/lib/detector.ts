@@ -71,7 +71,7 @@ async function build(): Promise<Detector> {
 
   // Candidate configs, best first. Each falls back to the next on failure.
   const candidates: Array<{ id: string; opts: any; backend: DetectorBackend; live: number; offline: number }> = [];
-  if (webgpu) {
+  if (webgpu && !lowEnd) {
     candidates.push({
       id: "onnx-community/yolov10s",
       opts: { device: "webgpu", dtype: "fp32" },
@@ -79,6 +79,8 @@ async function build(): Promise<Detector> {
       live: 640,
       offline: 640,
     });
+  }
+  if (webgpu) {
     candidates.push({
       id: "onnx-community/yolov10n",
       opts: { device: "webgpu", dtype: "fp32" },
