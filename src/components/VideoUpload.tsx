@@ -34,6 +34,9 @@ export function VideoUpload() {
       setFile(f);
       setPreviewUrl(URL.createObjectURL(f));
       setMode("upload");
+      // Start fetching the detection model while the user previews the clip,
+      // so pressing Track/Detect doesn't wait on a cold download.
+      preloadDetector();
     },
     [previewUrl],
   );
