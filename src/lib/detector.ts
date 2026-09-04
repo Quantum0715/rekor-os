@@ -111,10 +111,8 @@ async function build(): Promise<Detector> {
       // Warm-up pass so the first real frame doesn't pay shader/kernel compile cost.
       try {
         const warm = document.createElement("canvas");
-        warm.width = warm.height = 64;
+        warm.width = warm.height = 640;
         const img = RawImage.fromCanvas(warm);
-        fe.size = { longest_edge: 64 };
-        fe.pad_size = 64;
         const { pixel_values } = await processor(img);
         await model({ images: pixel_values });
       } catch {
@@ -122,10 +120,7 @@ async function build(): Promise<Detector> {
       }
 
       const detect: Detector["detect"] = async (source, opts) => {
-        const size = opts?.size ?? c.live;
         const threshold = opts?.threshold ?? 0.45;
-        fe.size = { longest_edge: size };
-        fe.pad_size = size;
         const image = RawImage.fromCanvas(source);
         const { pixel_values, reshaped_input_sizes } = await processor(image);
         const out = await model({ images: pixel_values });
